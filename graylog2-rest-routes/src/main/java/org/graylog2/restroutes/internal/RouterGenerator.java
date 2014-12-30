@@ -54,7 +54,7 @@ public class RouterGenerator {
     }
 
     public RouterGenerator(JDefinedClass routerClass, RouteClassGenerator generator) {
-        this(routerClass, generator, JMod.PUBLIC | JMod.STATIC);
+        this(routerClass, generator, JMod.PUBLIC);
     }
 
     public JDefinedClass build(List<RouteClass> routeClassList) {
@@ -72,6 +72,6 @@ public class RouterGenerator {
         String className = definedClass.fullName();
         JMethod method = router.method(generateMods, definedClass, definedClass.name());
         JBlock block = method.body();
-        block.directStatement("return new " + className + "();");
+        block.directStatement("return restAdapter.create(" + className + ".class);");
     }
 }

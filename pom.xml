@@ -627,6 +627,11 @@
                 <version>2.4.0</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>com.squareup.retrofit</groupId>
+                <artifactId>retrofit</artifactId>
+                <version>1.8.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

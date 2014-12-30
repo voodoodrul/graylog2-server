@@ -40,6 +40,7 @@ import org.reflections.Reflections;
 import javax.ws.rs.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -109,20 +110,23 @@ public class ResourceRoutesParser {
     }
 
     private Route buildRouteForMethod(Class<?> klazz, String pathPrefix, Method method) {
-        Set<Annotation> anns = Sets.newHashSet(method.getAnnotations());
-        Class<?> httpMethod = httpMethodOfMethod(method);
+        final Set<Annotation> anns = Sets.newHashSet(method.getAnnotations());
+        final Class<?> httpMethod = httpMethodOfMethod(method);
 
         if (httpMethod == null)
             return null;
 
-        Path ann = method.getAnnotation(Path.class);
+        final Path ann = method.getAnnotation(Path.class);
 
-        String absolutePath = getAbsolutePath(pathPrefix, ann);
+        final String absolutePath = getAbsolutePath(pathPrefix, ann);
 
         //System.out.println(httpMethod.getSimpleName() + "\t\t" + buildPath + ": " + klazz.getSimpleName() + "." + method.getName());
-        Map<PathParam, Class<?>> pathParamTypeMap = getPathParamMap(method);
+        final Map<PathParam, Class<?>> pathParamTypeMap = getPathParamMap(method);
 
-        return new Route(httpMethod.getSimpleName(), absolutePath, klazz, method, pathParamTypeMap);
+        final Class<?> returnType = method.getReturnType();
+        final Class<?> bodyType = getBodyReturnType(method);
+
+        return new Route(httpMethod, absolutePath, klazz, method, pathParamTypeMap, returnType, bodyType);
     }
 
     private Map<PathParam, Class<?>> getPathParamMap(Method method) {
@@ -137,6 +141,24 @@ public class ResourceRoutesParser {
             i++;
         }
         return pathParamTypeMap;
+    }
+
+    private Class<?> getBodyReturnType(Method method) {
+        int i = 0;
+        for (Annotation[] annotations : method.getParameterAnnotations()) {
+            boolean isPathParam = false;
+            for (Annotation annotation :annotations)
+                if (annotation instanceof PathParam) {
+                    isPathParam = true;
+                    break;
+                }
+
+            if (!isPathParam)
+                return method.getParameterTypes()[i];
+            i++;
+        }
+
+        return null;
     }
 
     private String getAbsolutePath(String pathPrefix, Path ann) {

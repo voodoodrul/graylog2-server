@@ -37,7 +37,10 @@ import org.graylog2.restroutes.internal.ResourceRoutesParser;
 import org.graylog2.restroutes.internal.RouteClassGenerator;
 import org.graylog2.restroutes.internal.RouteClass;
 import org.graylog2.restroutes.internal.RouterGenerator;
+import retrofit.Endpoint;
+import retrofit.RestAdapter;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -57,7 +60,7 @@ public class GenerateRoutes {
 
         JDefinedClass router = null;
         try {
-            router = codeModel._class(packagePrefix + ".routes");
+            router = generateRouterClass(codeModel, packagePrefix + ".API");
         } catch (JClassAlreadyExistsException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -75,7 +78,7 @@ public class GenerateRoutes {
         // do the same for radio resources
         JDefinedClass radioRouter = null;
         try {
-            radioRouter = codeModel._class(packagePrefix + ".Radio");
+            radioRouter = generateRouterClass(codeModel, packagePrefix + ".Radio");
         } catch (JClassAlreadyExistsException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -87,8 +90,8 @@ public class GenerateRoutes {
         final RouterGenerator radioRouterGenerator = new RouterGenerator(radioRouter, radioGenerator, JMod.PUBLIC);
         radioRouterGenerator.build(radioRouteClassList);
 
-        JMethod radioMethod = router.method(JMod.PUBLIC | JMod.STATIC, radioRouter, "radio");
-        radioMethod.body().directStatement("return new " + radioRouter.name() + "();");
+        JMethod radioMethod = router.method(JMod.PUBLIC, radioRouter, "radio");
+        radioMethod.body().directStatement("return new " + radioRouter.name() + "(restAdapter);");
 
         try {
             File dest = new File(argv[0]);
@@ -96,5 +99,17 @@ public class GenerateRoutes {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static JDefinedClass generateRouterClass(JCodeModel codeModel, String name) throws JClassAlreadyExistsException {
+        final JDefinedClass routerClass = codeModel._class(name);
+        final String restAdapterFieldName = "restAdapter";
+        routerClass.field(JMod.PRIVATE, RestAdapter.class, restAdapterFieldName);
+        JMethod constructor = routerClass.constructor(JMod.PUBLIC);
+        constructor.param(RestAdapter.class, restAdapterFieldName);
+        constructor.annotate(Inject.class);
+        constructor.body().assign(JExpr._this().ref(restAdapterFieldName), JExpr.ref(restAdapterFieldName));
+
+        return routerClass;
     }
 }

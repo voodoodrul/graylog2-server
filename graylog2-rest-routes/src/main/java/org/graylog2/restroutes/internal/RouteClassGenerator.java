@@ -34,8 +34,15 @@ package org.graylog2.restroutes.internal;
 
 import com.sun.codemodel.*;
 import org.graylog2.restroutes.PathMethod;
+import retrofit.http.Body;
+import retrofit.http.Path;
 
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.PathParam;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -45,15 +52,26 @@ public class RouteClassGenerator {
     private final JCodeModel codeModel;
     private final String packagePrefix;
 
+    private final static Map<Class<?>, Class<?>> httpMethodClassMapper = new HashMap<Class<?>, Class<?>>() {{
+        put(GET.class, retrofit.http.GET.class);
+        put(PUT.class, retrofit.http.PUT.class);
+        put(DELETE.class, retrofit.http.DELETE.class);
+        put(POST.class, retrofit.http.POST.class);
+    }};
+
     public RouteClassGenerator(String packagePrefix, JCodeModel codeModel) {
         this.packagePrefix = packagePrefix;
         this.codeModel = codeModel;
     }
 
+    private Class<?> mapHttpMethodClass(Class<?> httpMethodClass) {
+        return httpMethodClassMapper.get(httpMethodClass);
+    }
+
     public JDefinedClass generate(RouteClass routeClass) {
         JDefinedClass definedClass;
         try {
-            definedClass = codeModel._class(packagePrefix + "." + routeClass.getKlazz().getSimpleName());
+            definedClass = codeModel._class(packagePrefix + "." + routeClass.getKlazz().getSimpleName(), ClassType.INTERFACE);
         } catch (JClassAlreadyExistsException e) {
             System.out.println("Class " + routeClass.getKlazz().getSimpleName() + " already exists");
             e.printStackTrace();
@@ -61,16 +79,20 @@ public class RouteClassGenerator {
         }
 
         for (Route route : routeClass.getRoutes()) {
-            JMethod method = definedClass.method(JMod.PUBLIC, PathMethod.class, route.getMethod().getName());
-            String path = route.getPath();
+            JMethod method = definedClass.method(JMod.PUBLIC, route.getReturnType(), route.getMethod().getName());
+            method.annotate(codeModel.ref(mapHttpMethodClass(route.getHttpMethod()))).param("value", route.getPath());
+            //String path = route.getPath();
             for (Map.Entry<PathParam, Class<?>> entry : route.getPathParams().entrySet()) {
                 String fieldName = entry.getKey().value();
-                method.param(entry.getValue(), fieldName);
-                path = path.replace("{" + fieldName + "}", "\"+"+fieldName+"+\"");
+                method.param(entry.getValue(), fieldName).annotate(Path.class).param("value", fieldName);
+                //path = path.replace("{" + fieldName + "}", "\"+"+fieldName+"+\"");
 
             }
-            JBlock block = method.body();
-            block.directStatement("return new PathMethod(\"" + route.getHttpMethod() + "\", \"" + path + "\");");
+
+            if (route.getBodyType() != null)
+                method.param(route.getBodyType(), "body").annotate(Body.class);
+            /*JBlock block = method.body();
+            block.directStatement("return new PathMethod(\"" + route.getHttpMethod() + "\", \"" + path + "\");");*/
         }
 
         return definedClass;

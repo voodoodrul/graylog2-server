@@ -41,25 +41,25 @@ import java.util.Map;
  * @author Dennis Oelkers <dennis@torch.sh>
  */
 public class Route {
-    private final String httpMethod;
+    private final Class<?> httpMethod;
     private final String path;
     private final Class klazz;
     private final Method method;
     private final Map<PathParam, Class<?>> pathParams;
+    private final Class<?> returnType;
+    private final Class<?> bodyType;
 
-    public Route(String httpMethod, String path, Class klazz, Method method, Map<PathParam, Class<?>> pathParams) {
+    public Route(Class<?> httpMethod, String path, Class klazz, Method method, Map<PathParam, Class<?>> pathParams, Class<?> returnType, Class<?> bodyType) {
         this.httpMethod = httpMethod;
         this.path = path;
         this.klazz = klazz;
         this.method = method;
         this.pathParams = pathParams;
+        this.returnType = returnType;
+        this.bodyType = bodyType;
     }
 
-    public Route(String httpMethod, String path, Class klazz, Method method) {
-        this(httpMethod, path, klazz, method, new HashMap<PathParam, Class<?>>());
-    }
-
-    public String getHttpMethod() {
+    public Class<?> getHttpMethod() {
         return httpMethod;
     }
 
@@ -78,4 +78,10 @@ public class Route {
     public Map<PathParam, Class<?>> getPathParams() {
         return pathParams;
     }
+
+    public Class<?> getReturnType() {
+        return returnType;
+    }
+
+    public Class<?> getBodyType() { return this.bodyType; }
 }
