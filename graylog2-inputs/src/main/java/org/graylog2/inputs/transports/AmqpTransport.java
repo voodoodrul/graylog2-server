@@ -69,6 +69,7 @@ public class AmqpTransport extends ThrottleableTransport {
                          EventBus eventBus,
                          LocalMetricRegistry localRegistry,
                          @Named("daemonScheduler") ScheduledExecutorService scheduler) {
+        super(eventBus, configuration);
         this.configuration = configuration;
         this.eventBus = eventBus;
         this.localRegistry = localRegistry;
@@ -135,7 +136,7 @@ public class AmqpTransport extends ThrottleableTransport {
     }
 
     @Override
-    public void launch(MessageInput input) throws MisfireException {
+    public void doLaunch(MessageInput input) throws MisfireException {
         consumer = new AmqpConsumer(
                 configuration.getString(CK_HOSTNAME),
                 configuration.getInt(CK_PORT),
@@ -148,18 +149,20 @@ public class AmqpTransport extends ThrottleableTransport {
                 configuration.getString(CK_ROUTING_KEY),
                 configuration.getInt(CK_PARALLEL_QUEUES),
                 input,
-                scheduler
+                scheduler,
+                this
         );
         eventBus.register(this);
         try {
             consumer.run();
         } catch (IOException e) {
+            eventBus.unregister(this);
             throw new MisfireException("Could not launch AMQP consumer.", e);
         }
     }
 
     @Override
-    public void stop() {
+    public void doStop() {
         if (consumer != null) {
             try {
                 consumer.stop();

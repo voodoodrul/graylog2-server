@@ -16,6 +16,7 @@
  */
 package org.graylog2.restclient.lib;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -29,7 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.net.HttpHeaders;
 import com.google.common.net.MediaType;
-import com.google.inject.name.Named;
+import javax.inject.Named;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.AsyncHttpClientConfig;
@@ -218,7 +219,7 @@ class ApiClientImpl implements ApiClient {
         private Radio radio;
         private Collection<Node> nodes;
         private final Method method;
-        private ApiRequest body;
+        private Object body;
         private final Class<T> responseClass;
         private final ArrayList<Object> pathParams = Lists.newArrayList();
         private final ListMultimap<String, String> queryParams = ArrayListMultimap.create();
@@ -355,7 +356,7 @@ class ApiClientImpl implements ApiClient {
         }
 
         @Override
-        public org.graylog2.restclient.lib.ApiRequestBuilder<T> body(ApiRequest body) {
+        public org.graylog2.restclient.lib.ApiRequestBuilder<T> body(Object body) {
             this.body = body;
             return this;
         }
@@ -573,7 +574,7 @@ class ApiClientImpl implements ApiClient {
             return results;
         }
 
-        private AsyncHttpClient.BoundRequestBuilder requestBuilderForUrl(URL url) {
+        private AsyncHttpClient.BoundRequestBuilder requestBuilderForUrl(URL url) throws JsonProcessingException {
             // *sigh* the generic requestBuilder methods are protected/private making this verbose :(
             final AsyncHttpClient.BoundRequestBuilder requestBuilder;
             final String userInfo = url.getUserInfo();
@@ -610,7 +611,7 @@ class ApiClientImpl implements ApiClient {
                 }
                 requestBuilder.addHeader(HttpHeaders.CONTENT_TYPE, "application/json; charset=utf-8");
                 requestBuilder.setBodyEncoding("UTF-8");
-                requestBuilder.setBody(body.toJson());
+                requestBuilder.setBody(objectMapper.writeValueAsString(body));
             } else if (method == Method.POST) {
                 LOG.warn("POST without body, this doesn't make sense,", new IllegalStateException());
             }

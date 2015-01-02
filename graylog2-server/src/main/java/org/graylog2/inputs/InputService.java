@@ -35,6 +35,7 @@ public interface InputService extends PersistedService {
 
     List<Input> allOfRadio(Node radio);
 
+    Input create(String id, Map<String, Object> fields);
     Input create(Map<String, Object> fields);
 
     Input find(String id) throws NotFoundException;
@@ -55,4 +56,6 @@ public interface InputService extends PersistedService {
     void removeStaticField(Input input, String key);
 
     MessageInput getMessageInput(Input io) throws NoSuchInputTypeException;
+
+    List<Map.Entry<String, String>> getStaticFields(Input input);
 }

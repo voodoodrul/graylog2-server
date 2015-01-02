@@ -18,38 +18,31 @@ package org.graylog2.rest.resources.system.inputs;
 
 import com.codahale.metrics.annotation.Timed;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiParam;
 import com.wordnik.swagger.annotations.ApiResponse;
 import com.wordnik.swagger.annotations.ApiResponses;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
-import org.bson.types.ObjectId;
 import org.graylog2.database.ValidationException;
 import org.graylog2.inputs.Input;
-import org.graylog2.inputs.InputImpl;
 import org.graylog2.inputs.InputService;
 import org.graylog2.plugin.IOState;
 import org.graylog2.plugin.ServerStatus;
-import org.graylog2.plugin.Tools;
-import org.graylog2.plugin.configuration.Configuration;
 import org.graylog2.plugin.configuration.ConfigurationException;
 import org.graylog2.plugin.inputs.Extractor;
 import org.graylog2.plugin.inputs.MessageInput;
+import org.graylog2.rest.models.system.inputs.responses.InputSummary;
 import org.graylog2.rest.resources.RestResource;
 import org.graylog2.rest.resources.system.inputs.responses.InputCreated;
-import org.graylog2.rest.resources.system.inputs.responses.InputStateSummary;
-import org.graylog2.rest.resources.system.inputs.responses.InputSummary;
-import org.graylog2.rest.resources.system.inputs.responses.InputsList;
+import org.graylog2.rest.models.system.inputs.responses.InputStateSummary;
+import org.graylog2.rest.models.system.inputs.responses.InputsList;
 import org.graylog2.security.RestPermissions;
 import org.graylog2.shared.inputs.InputLauncher;
 import org.graylog2.shared.inputs.InputRegistry;
 import org.graylog2.shared.inputs.MessageInputFactory;
 import org.graylog2.shared.inputs.NoSuchInputTypeException;
-import org.graylog2.shared.rest.resources.system.inputs.requests.InputLaunchRequest;
-import org.graylog2.shared.system.activities.Activity;
-import org.graylog2.shared.system.activities.ActivityWriter;
+import org.graylog2.rest.models.system.inputs.requests.InputLaunchRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +65,6 @@ import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RequiresAuthentication
 @Api(value = "System/Inputs", description = "Message inputs of this node")
@@ -85,19 +77,16 @@ public class InputsResource extends RestResource {
 
     private final InputService inputService;
     private final InputRegistry inputRegistry;
-    private final ActivityWriter activityWriter;
     private final MessageInputFactory messageInputFactory;
     private final InputLauncher inputLauncher;
 
     @Inject
     public InputsResource(InputService inputService,
                           InputRegistry inputRegistry,
-                          ActivityWriter activityWriter,
                           MessageInputFactory messageInputFactory,
                           InputLauncher inputLauncher) {
         this.inputService = inputService;
         this.inputRegistry = inputRegistry;
-        this.activityWriter = activityWriter;
         this.messageInputFactory = messageInputFactory;
         this.inputLauncher = inputLauncher;
     }
@@ -141,29 +130,33 @@ public class InputsResource extends RestResource {
         for (IOState<MessageInput> inputState : inputRegistry.getInputStates()) {
             if (!isPermitted(RestPermissions.INPUTS_READ, inputState.getStoppable().getId()))
                 continue;
-            final MessageInput messageInput = inputState.getStoppable();
-            inputStates.add(InputStateSummary.create(
-                    inputState.getStoppable().getId(),
-                    inputState.getState().toString(),
-                    inputState.getStartedAt(),
-                    inputState.getDetailedMessage(),
-                    InputSummary.create(
-                            messageInput.getTitle(),
-                            messageInput.getPersistId(),
-                            messageInput.isGlobal(),
-                            messageInput.getName(),
-                            messageInput.getContentPack(),
-                            messageInput.getId(),
-                            messageInput.getCreatedAt(),
-                            messageInput.getClass().getCanonicalName(),
-                            messageInput.getCreatorUserId(),
-                            messageInput.getAttributesWithMaskedPasswords(),
-                            messageInput.getStaticFields()
-                    )
-            ));
+            inputStates.add(getInputStateSummary(inputState));
         }
 
         return InputsList.create(inputStates.build());
+    }
+
+    private InputStateSummary getInputStateSummary(IOState<MessageInput> inputState) {
+        final MessageInput messageInput = inputState.getStoppable();
+        return InputStateSummary.create(
+                messageInput.getId(),
+                inputState.getState().toString(),
+                inputState.getStartedAt(),
+                inputState.getDetailedMessage(),
+                InputSummary.create(
+                        messageInput.getTitle(),
+                        messageInput.getPersistId(),
+                        messageInput.isGlobal(),
+                        messageInput.getName(),
+                        messageInput.getContentPack(),
+                        messageInput.getId(),
+                        messageInput.getCreatedAt(),
+                        messageInput.getClass().getCanonicalName(),
+                        messageInput.getCreatorUserId(),
+                        messageInput.getAttributesWithMaskedPasswords(),
+                        messageInput.getStaticFields()
+                )
+        );
     }
 
     @POST
@@ -184,7 +177,13 @@ public class InputsResource extends RestResource {
         // Build input.
         final MessageInput input;
         try {
-            input = messageInputFactory.create(lr, getCurrentUser().getName(), serverStatus.getNodeId().toString());
+            final String nodeId;
+            if (lr.node() != null)
+                nodeId = lr.node();
+            else
+                nodeId = serverStatus.getNodeId().toString();
+
+            input = messageInputFactory.create(lr, getCurrentUser().getName(), nodeId);
 
             input.checkConfiguration();
         } catch (NoSuchInputTypeException e) {
@@ -208,10 +207,12 @@ public class InputsResource extends RestResource {
 
         input.setPersistId(id);
 
-        input.initialize();
+        if (input.isGlobal() || input.getNodeId().equals(serverStatus.getNodeId().toString())) {
+            input.initialize();
 
-        // Launch input. (this will run async and clean up itself in case of an error.)
-        inputLauncher.launch(input);
+            // Launch input. (this will run async and clean up itself in case of an error.)
+            inputLauncher.launch(input);
+        }
 
         final URI inputUri = UriBuilder.fromResource(InputsResource.class)
                 .path("{inputId}")
@@ -227,9 +228,9 @@ public class InputsResource extends RestResource {
         // ... and check if it would pass validation. We don't need to go on if it doesn't.
         final Input mongoInput;
         if (input.getId() != null)
-            mongoInput = new InputImpl(new ObjectId(input.getId()), inputData);
+            mongoInput = inputService.create(input.getId(), inputData);
         else
-            mongoInput = new InputImpl(inputData);
+            mongoInput = inputService.create(inputData);
 
         return mongoInput;
     }
@@ -251,10 +252,6 @@ public class InputsResource extends RestResource {
             throw new NotFoundException();
         }
 
-        final String msg = "Attempting to terminate input [" + messageInput.getName() + "]. Reason: REST request.";
-        LOG.info(msg);
-        activityWriter.write(new Activity(msg, InputsResource.class));
-
         inputRegistry.remove(messageInput);
 
         if (serverStatus.hasCapability(ServerStatus.Capability.MASTER) || !messageInput.isGlobal()) {
@@ -266,10 +263,6 @@ public class InputsResource extends RestResource {
                 LOG.warn("Input not found while deleting it: ", e);
             }
         }
-
-        final String msg2 = "Terminated input [" + messageInput.getName() + "]. Reason: REST request.";
-        LOG.info(msg2);
-        activityWriter.write(new Activity(msg2, InputsResource.class));
     }
 
     @PUT
@@ -325,7 +318,7 @@ public class InputsResource extends RestResource {
 
         if (inputState == null) {
             try {
-                final Input input = inputService.find(inputId);
+                final Input input = inputService.findForThisNodeOrGlobal(serverStatus.getNodeId().toString(), inputId);
                 messageInput = inputService.getMessageInput(input);
             } catch (NoSuchInputTypeException | org.graylog2.database.NotFoundException e) {
                 final String error = "Cannot launch input <" + inputId + ">. Input not found.";
@@ -341,15 +334,7 @@ public class InputsResource extends RestResource {
             throw new NotFoundException(error);
         }
 
-        final String msg = "Launching existing input [" + messageInput.getName() + "]. Reason: REST request.";
-        LOG.info(msg);
-        activityWriter.write(new Activity(msg, InputsResource.class));
-
         inputLauncher.launch(messageInput);
-
-        final String msg2 = "Launched existing input [" + messageInput.getName() + "]. Reason: REST request.";
-        LOG.info(msg2);
-        activityWriter.write(new Activity(msg2, InputsResource.class));
     }
 
     @POST
@@ -359,24 +344,16 @@ public class InputsResource extends RestResource {
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "No such input on this node.")
     })
-    public IOState<MessageInput> stop(@ApiParam(name = "inputId", required = true) @PathParam("inputId") String inputId) {
+    public InputStateSummary stop(@ApiParam(name = "inputId", required = true) @PathParam("inputId") String inputId) {
         final MessageInput input = inputRegistry.getRunningInput(inputId);
         if (input == null) {
             LOG.info("Cannot stop input. Input not found.");
             throw new NotFoundException();
         }
 
-        final String msg = "Stopping input [" + input.getName() + "]. Reason: REST request.";
-        LOG.info(msg);
-        activityWriter.write(new Activity(msg, InputsResource.class));
-
         final IOState<MessageInput> inputState = inputRegistry.stop(input);
 
-        final String msg2 = "Stopped input [" + input.getName() + "]. Reason: REST request.";
-        LOG.info(msg2);
-        activityWriter.write(new Activity(msg2, InputsResource.class));
-
-        return inputState;
+        return getInputStateSummary(inputState);
     }
 
     @POST
@@ -387,7 +364,8 @@ public class InputsResource extends RestResource {
             @ApiResponse(code = 404, message = "No such input on this node.")
     })
     public Response restart(@ApiParam(name = "inputId", required = true) @PathParam("inputId") String inputId) {
-        final IOState<MessageInput> oldState = stop(inputId);
+        final IOState<MessageInput> oldState = inputRegistry.getRunningInputState(inputId);
+        stop(inputId);
         inputRegistry.remove(oldState);
 
         launchExisting(inputId);

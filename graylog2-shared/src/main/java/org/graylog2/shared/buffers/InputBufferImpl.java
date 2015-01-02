@@ -19,9 +19,8 @@ package org.graylog2.shared.buffers;
 import com.codahale.metrics.InstrumentedExecutorService;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.inject.Inject;
-import com.google.inject.Provider;
-import com.lmax.disruptor.ExceptionHandler;
+import javax.inject.Inject;
+import javax.inject.Provider;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
@@ -57,24 +56,8 @@ public class InputBufferImpl implements InputBuffer {
                 executorService(metricRegistry),
                 ProducerType.MULTI,
                 configuration.getInputBufferWaitStrategy());
+        disruptor.handleExceptionsWith(new LoggingExceptionHandler(LOG));
 
-        // TODO proper error reporting
-        disruptor.handleExceptionsWith(new ExceptionHandler() {
-            @Override
-            public void handleEventException(Throwable ex, long sequence, Object event) {
-                LOG.error("", ex);
-            }
-
-            @Override
-            public void handleOnStartException(Throwable ex) {
-                LOG.error("", ex);
-            }
-
-            @Override
-            public void handleOnShutdownException(Throwable ex) {
-                LOG.error("", ex);
-            }
-        });
         final int numberOfHandlers = configuration.getInputbufferProcessors();
         if (configuration.isMessageJournalEnabled()) {
             LOG.info("Message journal is enabled.");

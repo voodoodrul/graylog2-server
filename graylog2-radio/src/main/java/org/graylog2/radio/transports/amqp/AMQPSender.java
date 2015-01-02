@@ -16,23 +16,24 @@
  */
 package org.graylog2.radio.transports.amqp;
 
-import com.rabbitmq.client.*;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import org.graylog2.plugin.Message;
 import org.graylog2.plugin.RadioMessage;
 import org.graylog2.radio.Configuration;
 import org.msgpack.MessagePack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.IOException;
+
+import static com.rabbitmq.client.MessageProperties.MINIMAL_BASIC;
+import static com.rabbitmq.client.MessageProperties.MINIMAL_PERSISTENT_BASIC;
 
 /**
  * @author Lennart Koopmann <lennart@torch.sh>
  */
 public class AMQPSender {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AMQPSender.class);
 
     // Not threadsafe!
 
@@ -45,6 +46,7 @@ public class AMQPSender {
     private final String queueType;
     private final String exchangeName;
     private final String routingKey;
+    private final boolean amqpPersistentMessagesEnabled;
 
     private Connection connection;
     private Channel channel;
@@ -59,11 +61,13 @@ public class AMQPSender {
                       String queueName,
                       String queueType,
                       String exchangeName,
-                      String routingKey) {
+                      String routingKey,
+                      boolean amqpPersistentMessagesEnabled) {
         this.queueName = queueName;
         this.queueType = queueType;
         this.exchangeName = exchangeName;
         this.routingKey = routingKey;
+        this.amqpPersistentMessagesEnabled = amqpPersistentMessagesEnabled;
         pack = new MessagePack();
 
         this.hostname = hostname;
@@ -83,7 +87,8 @@ public class AMQPSender {
                 configuration.getAmqpQueueName(),
                 configuration.getAmqpQueueType(),
                 configuration.getAmqpExchangeName(),
-                configuration.getAmqpRoutingKey());
+                configuration.getAmqpRoutingKey(),
+                configuration.isAmqpPersistentMessagesEnabled());
     }
 
     public void send(Message msg) throws IOException {
@@ -91,14 +96,17 @@ public class AMQPSender {
             connect();
         }
 
-        byte[] body = RadioMessage.serialize(pack, msg);
+        final byte[] body = RadioMessage.serialize(pack, msg);
 
-        boolean mandatory = true;
-        channel.basicPublish(exchangeName, routingKey, mandatory, new AMQP.BasicProperties(), body);
+        channel.basicPublish(exchangeName,
+                             routingKey,
+                             true, // mandatory
+                             amqpPersistentMessagesEnabled ? MINIMAL_PERSISTENT_BASIC : MINIMAL_BASIC,
+                             body);
     }
 
     public void connect() throws IOException {
-        ConnectionFactory factory = new ConnectionFactory();
+        final ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(hostname);
         factory.setPort(port);
 

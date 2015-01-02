@@ -19,9 +19,9 @@ package org.graylog2.bindings.providers;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import com.google.inject.Inject;
-import com.google.inject.Provider;
-import com.google.inject.Singleton;
+import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.elasticsearch.common.settings.loader.YamlSettingsLoader;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
@@ -96,6 +96,8 @@ public class EsNodeProvider implements Provider<Node> {
         if (!isNullOrEmpty(conf.getNetworkPublishHost())) {
             settings.put("network.publish_host", conf.getNetworkPublishHost());
         }
+
+        settings.put("plugins.mandatory", "graylog2-monitor");
 
         // Overwrite from a custom ElasticSearch config file.
         final File esConfigFile = conf.getConfigFile();
