@@ -167,5 +167,9 @@
             <groupId>com.squareup.retrofit</groupId>
             <artifactId>retrofit</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.squareup.retrofit</groupId>
+            <artifactId>converter-jackson</artifactId>
+        </dependency>
     </dependencies>
 </project>

@@ -45,6 +45,8 @@ import org.graylog2.restclient.models.api.responses.system.loggers.LoggerSubsyst
 import org.graylog2.restclient.models.api.responses.system.loggers.LoggerSubsystemsResponse;
 import org.graylog2.restclient.models.api.responses.system.loggers.LoggerSummary;
 import org.graylog2.restclient.models.api.responses.system.loggers.LoggersResponse;
+import org.graylog2.restroutes.factories.RestAdapterFactory;
+import org.graylog2.restroutes.generated.API;
 import org.graylog2.restroutes.generated.routes;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -75,6 +77,7 @@ public class Node extends ClusterEntity {
     private final ApiClient api;
     private final Input.Factory inputFactory;
     private final InputState.Factory inputStateFactory;
+    private final RestAdapterFactory restAdapterFactory;
     private final URI transportAddress;
 
     private DateTime lastSeen;
@@ -99,10 +102,12 @@ public class Node extends ClusterEntity {
     public Node(ApiClient api,
                 Input.Factory inputFactory,
                 InputState.Factory inputStateFactory,
+                RestAdapterFactory restAdapterFactory,
                 @Assisted NodeSummaryResponse r) {
         this.api = api;
         this.inputFactory = inputFactory;
         this.inputStateFactory = inputStateFactory;
+        this.restAdapterFactory = restAdapterFactory;
 
         transportAddress = normalizeUriPath(r.transportAddress);
         lastSeen = new DateTime(r.lastSeen, DateTimeZone.UTC);
@@ -613,5 +618,13 @@ public class Node extends ClusterEntity {
                 .node(this)
                 .expect(Http.Status.ACCEPTED)
                 .execute();
+    }
+
+    public API api() {
+        return new API(restAdapterFactory.create(this.getTransportAddress()));
+    }
+
+    public API api(String user, String password) {
+        return new API(restAdapterFactory.create(this.getTransportAddress(), user, password));
     }
 }
