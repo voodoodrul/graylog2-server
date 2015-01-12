@@ -39,6 +39,7 @@ import org.graylog2.restroutes.internal.RouteClass;
 import org.graylog2.restroutes.internal.RouterGenerator;
 import retrofit.Endpoint;
 import retrofit.RestAdapter;
+import org.graylog2.shared.rest.resources.RestResource;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -53,7 +54,7 @@ public class GenerateRoutes {
 
     public static void main(String[] argv) {
         // Just "touching" class in server jar so it gets loaded.
-        org.graylog2.rest.resources.RestResource resource = null;
+        RestResource resource = null;
         org.graylog2.radio.rest.resources.RestResource radioResource = null;
 
         JCodeModel codeModel = new JCodeModel();
@@ -66,9 +67,12 @@ public class GenerateRoutes {
             System.exit(-1);
         }
 
+        final List<RouteClass> sharedRouteClassList = new ResourceRoutesParser("org.graylog2.shared.rest.resources").buildClasses();
+
         final ResourceRoutesParser parser = new ResourceRoutesParser("org.graylog2.rest.resources");
 
         final List<RouteClass> routeClassList = parser.buildClasses();
+        routeClassList.addAll(sharedRouteClassList);
 
         final RouteClassGenerator generator = new RouteClassGenerator(packagePrefix, codeModel);
 
@@ -86,6 +90,7 @@ public class GenerateRoutes {
 
         final ResourceRoutesParser radioParser = new ResourceRoutesParser("org.graylog2.radio.rest.resources");
         final List<RouteClass> radioRouteClassList = radioParser.buildClasses();
+        radioRouteClassList.addAll(sharedRouteClassList);
         final RouteClassGenerator radioGenerator = new RouteClassGenerator(packagePrefix + ".radio", codeModel);
         final RouterGenerator radioRouterGenerator = new RouterGenerator(radioRouter, radioGenerator, JMod.PUBLIC);
         radioRouterGenerator.build(radioRouteClassList);

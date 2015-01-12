@@ -16,7 +16,6 @@
  */
 package org.graylog2.radio.bindings;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
@@ -35,11 +34,13 @@ import org.graylog2.radio.inputs.InputStateListener;
 import org.graylog2.radio.inputs.PersistedInputsImpl;
 import org.graylog2.radio.system.activities.NullActivityWriter;
 import org.graylog2.radio.transports.RadioTransport;
-import org.graylog2.shared.bindings.providers.ObjectMapperProvider;
+import org.graylog2.radio.users.NullUserServiceImpl;
 import org.graylog2.shared.buffers.processors.ProcessBufferProcessor;
 import org.graylog2.shared.inputs.PersistedInputs;
 import org.graylog2.shared.journal.NoopJournalModule;
+import org.graylog2.shared.security.ShiroSecurityBinding;
 import org.graylog2.shared.system.activities.ActivityWriter;
+import org.graylog2.shared.users.UserService;
 
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.container.DynamicFeature;
@@ -71,6 +72,7 @@ public class RadioBindings extends AbstractModule {
     private void bindInterfaces() {
         bind(ActivityWriter.class).to(NullActivityWriter.class);
         bind(PersistedInputs.class).to(PersistedInputsImpl.class);
+        bind(UserService.class).to(NullUserServiceImpl.class);
     }
 
     private void bindEventBusListeners() {
@@ -98,7 +100,6 @@ public class RadioBindings extends AbstractModule {
 
     private void bindProviders() {
         bind(AsyncHttpClient.class).toProvider(AsyncHttpClientProvider.class);
-        bind(ObjectMapper.class).toProvider(ObjectMapperProvider.class).asEagerSingleton();
     }
 
     private void bindTransport() {
@@ -108,6 +109,7 @@ public class RadioBindings extends AbstractModule {
     private void bindDynamicFeatures() {
         TypeLiteral<Class<? extends DynamicFeature>> type = new TypeLiteral<Class<? extends DynamicFeature>>(){};
         Multibinder<Class<? extends DynamicFeature>> setBinder = Multibinder.newSetBinder(binder(), type);
+        setBinder.addBinding().toInstance(ShiroSecurityBinding.class);
     }
 
     private void bindContainerResponseFilters() {

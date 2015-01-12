@@ -16,7 +16,6 @@
  */
 package org.graylog2.bindings;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
@@ -40,7 +39,6 @@ import org.graylog2.bindings.providers.LdapUserAuthenticatorProvider;
 import org.graylog2.bindings.providers.MongoConnectionProvider;
 import org.graylog2.bindings.providers.RotationStrategyProvider;
 import org.graylog2.bindings.providers.RulesEngineProvider;
-import org.graylog2.bindings.providers.ServerObjectMapperProvider;
 import org.graylog2.bindings.providers.SystemJobFactoryProvider;
 import org.graylog2.bindings.providers.SystemJobManagerProvider;
 import org.graylog2.buffers.processors.ServerProcessBufferProcessor;
@@ -54,8 +52,8 @@ import org.graylog2.indexer.healing.FixDeflectorByMoveJob;
 import org.graylog2.indexer.indices.jobs.OptimizeIndexJob;
 import org.graylog2.indexer.ranges.CreateNewSingleIndexRangeJob;
 import org.graylog2.indexer.ranges.RebuildIndexRangesJob;
-import org.graylog2.inputs.PersistedInputsImpl;
 import org.graylog2.inputs.InputStateListener;
+import org.graylog2.inputs.PersistedInputsImpl;
 import org.graylog2.jersey.container.netty.SecurityContextFactory;
 import org.graylog2.plugin.BaseConfiguration;
 import org.graylog2.plugin.PluginMetaData;
@@ -65,7 +63,7 @@ import org.graylog2.plugin.indexer.rotation.RotationStrategy;
 import org.graylog2.rest.NotFoundExceptionMapper;
 import org.graylog2.rest.RestAccessLogFilter;
 import org.graylog2.rest.ValidationExceptionMapper;
-import org.graylog2.security.ShiroSecurityBinding;
+import org.graylog2.shared.security.ShiroSecurityBinding;
 import org.graylog2.security.ShiroSecurityContextFactory;
 import org.graylog2.security.ldap.LdapConnector;
 import org.graylog2.security.ldap.LdapSettingsImpl;
@@ -84,6 +82,7 @@ import org.graylog2.system.activities.SystemMessageActivityWriter;
 import org.graylog2.system.jobs.SystemJobFactory;
 import org.graylog2.system.jobs.SystemJobManager;
 import org.graylog2.system.shutdown.GracefulShutdown;
+import org.graylog2.system.stats.ClusterStatsModule;
 
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.container.DynamicFeature;
@@ -110,7 +109,6 @@ public class ServerBindings extends AbstractModule {
     }
 
     private void bindProviders() {
-        bind(ObjectMapper.class).toProvider(ServerObjectMapperProvider.class).asEagerSingleton();
         bind(RotationStrategy.class).toProvider(RotationStrategyProvider.class);
     }
 
@@ -157,6 +155,7 @@ public class ServerBindings extends AbstractModule {
         bind(BundleService.class).in(Scopes.SINGLETON);
         bind(BundleImporterProvider.class).in(Scopes.SINGLETON);
         bind(BundleExporterProvider.class).in(Scopes.SINGLETON);
+        bind(ClusterStatsModule.class).asEagerSingleton();
 
         bind(String[].class).annotatedWith(Names.named("RestControllerPackages")).toInstance(new String[]{
                 "org.graylog2.rest.resources",

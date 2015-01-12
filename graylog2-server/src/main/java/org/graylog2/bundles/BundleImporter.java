@@ -26,7 +26,7 @@ import org.graylog2.dashboards.DashboardRegistry;
 import org.graylog2.dashboards.DashboardService;
 import org.graylog2.dashboards.widgets.InvalidWidgetConfigurationException;
 import org.graylog2.database.NotFoundException;
-import org.graylog2.database.ValidationException;
+import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.indexer.searches.Searches;
 import org.graylog2.indexer.searches.timeranges.AbsoluteRange;
 import org.graylog2.indexer.searches.timeranges.InvalidRangeParametersException;
@@ -350,7 +350,6 @@ public class BundleImporter {
             final DateTime createdAt,
             final String bundleId) {
         final ImmutableMap.Builder<String, Object> inputData = ImmutableMap.builder();
-        inputData.put(MessageInput.FIELD_INPUT_ID, inputId.toString());
         inputData.put(MessageInput.FIELD_TITLE, input.getTitle());
         inputData.put(MessageInput.FIELD_TYPE, input.getType());
         inputData.put(MessageInput.FIELD_CREATOR_USER_ID, userName);

@@ -28,12 +28,15 @@ import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.Maps;
-import org.graylog2.plugin.*;
+import org.graylog2.plugin.AbstractDescriptor;
+import org.graylog2.plugin.LocalMetricRegistry;
+import org.graylog2.plugin.ServerStatus;
+import org.graylog2.plugin.Stoppable;
+import org.graylog2.plugin.Tools;
 import org.graylog2.plugin.buffers.InputBuffer;
 import org.graylog2.plugin.configuration.Configuration;
 import org.graylog2.plugin.configuration.ConfigurationException;
 import org.graylog2.plugin.configuration.ConfigurationRequest;
-import org.graylog2.plugin.configuration.fields.ConfigurationField;
 import org.graylog2.plugin.configuration.fields.TextField;
 import org.graylog2.plugin.inputs.codecs.Codec;
 import org.graylog2.plugin.inputs.transports.Transport;
@@ -50,11 +53,8 @@ import java.util.Map;
 public abstract class MessageInput implements Stoppable {
     private static final Logger LOG = LoggerFactory.getLogger(MessageInput.class);
 
-    public static final String CK_OVERRIDE_SOURCE = "override_source";
     public static final String FIELD_ID = "_id";
     public static final String FIELD_TYPE = "type";
-    public static final String FIELD_INPUT_ID = "input_id";
-    public static final String FIELD_PERSIST_ID = "persist_id";
     public static final String FIELD_NODE_ID = "node_id";
     public static final String FIELD_RADIO_ID = "radio_id";
     public static final String FIELD_NAME = "name";
@@ -288,8 +288,6 @@ public abstract class MessageInput implements Stoppable {
         final MessageInput messageInput = this;
         return new HashMap<String, Object>() {{
             put(FIELD_TYPE, messageInput.getClass().getCanonicalName());
-            put(FIELD_INPUT_ID, messageInput.getId());
-            put(FIELD_PERSIST_ID, messageInput.getPersistId());
             put(FIELD_NAME, messageInput.getName());
             put(FIELD_TITLE, messageInput.getTitle());
             put(FIELD_CREATOR_USER_ID, messageInput.getCreatorUserId());
@@ -398,16 +396,6 @@ public abstract class MessageInput implements Stoppable {
             final ConfigurationRequest r = new ConfigurationRequest();
             r.putAll(transport.getFields());
             r.putAll(codec.getFields());
-
-            // TODO implement universal override (in raw message maybe?)
-            r.addField(new TextField(
-                    CK_OVERRIDE_SOURCE,
-                    "Override source",
-                    null,
-                    "The source is a hostname derived from the received packet by default. Set this if you want to override " +
-                            "it with a custom string.",
-                    ConfigurationField.Optional.OPTIONAL
-            ));
 
             // give the codec the opportunity to override default values for certain configuration fields,
             // this is commonly being used to default to some well known port for protocols such as GELF or syslog

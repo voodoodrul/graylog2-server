@@ -66,8 +66,12 @@ public class InputLauncher {
         if (inputRegistry.getInputState(input.getId()) == null) {
             inputState = inputStateFactory.create(input);
             inputRegistry.add(inputState);
-        } else
+        } else {
             inputState = inputRegistry.getInputState(input.getId());
+            if (inputState.getState() == IOState.Type.RUNNING || inputState.getState() == IOState.Type.STARTING)
+                return inputState;
+            inputState.setStoppable(input);
+        }
 
         executor.submit(new Runnable() {
             @Override

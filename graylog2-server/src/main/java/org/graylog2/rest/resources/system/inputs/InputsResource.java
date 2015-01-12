@@ -24,7 +24,7 @@ import com.wordnik.swagger.annotations.ApiParam;
 import com.wordnik.swagger.annotations.ApiResponse;
 import com.wordnik.swagger.annotations.ApiResponses;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
-import org.graylog2.database.ValidationException;
+import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.inputs.Input;
 import org.graylog2.inputs.InputService;
 import org.graylog2.plugin.IOState;
@@ -33,7 +33,7 @@ import org.graylog2.plugin.configuration.ConfigurationException;
 import org.graylog2.plugin.inputs.Extractor;
 import org.graylog2.plugin.inputs.MessageInput;
 import org.graylog2.rest.models.system.inputs.responses.InputSummary;
-import org.graylog2.rest.resources.RestResource;
+import org.graylog2.shared.rest.resources.RestResource;
 import org.graylog2.rest.resources.system.inputs.responses.InputCreated;
 import org.graylog2.rest.models.system.inputs.responses.InputStateSummary;
 import org.graylog2.rest.models.system.inputs.responses.InputsList;
@@ -279,7 +279,7 @@ public class InputsResource extends RestResource {
 
         try {
             final Input oldInput = inputService.find(inputId);
-            final MessageInput messageInput = messageInputFactory.create(lr, getCurrentUser().getName(), serverStatus.getNodeId().toString());
+            final MessageInput messageInput = messageInputFactory.create(lr, getCurrentUser().getName(), oldInput.getNodeId());
             messageInput.setPersistId(inputId);
             final Input mongoInput = getInput(messageInput);
 

@@ -24,11 +24,11 @@ import com.wordnik.swagger.annotations.ApiResponse;
 import com.wordnik.swagger.annotations.ApiResponses;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.graylog2.database.NotFoundException;
-import org.graylog2.database.ValidationException;
+import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.plugin.streams.Stream;
 import org.graylog2.plugin.streams.StreamRule;
 import org.graylog2.plugin.streams.StreamRuleType;
-import org.graylog2.rest.resources.RestResource;
+import org.graylog2.shared.rest.resources.RestResource;
 import org.graylog2.rest.resources.streams.responses.SingleStreamRuleSummaryResponse;
 import org.graylog2.rest.resources.streams.responses.StreamRuleListResponse;
 import org.graylog2.rest.resources.streams.rules.requests.CreateStreamRuleRequest;
@@ -36,8 +36,6 @@ import org.graylog2.security.RestPermissions;
 import org.graylog2.streams.StreamRuleService;
 import org.graylog2.streams.StreamService;
 import org.hibernate.validator.constraints.NotEmpty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.validation.Valid;
@@ -114,7 +112,7 @@ public class StreamRuleResource extends RestResource {
         checkPermission(RestPermissions.STREAMS_EDIT, streamid);
 
         final StreamRule streamRule;
-        streamRule = streamRuleService.load(loadObjectId(streamRuleId));
+        streamRule = streamRuleService.load(streamRuleId);
 
         if (!streamRule.getStreamId().equals(streamid)) {
             throw new NotFoundException();
@@ -171,7 +169,7 @@ public class StreamRuleResource extends RestResource {
                           @ApiParam(name = "streamRuleId", value = "The stream rule id we are getting", required = true) @PathParam("streamRuleId") String streamRuleId) throws NotFoundException {
         checkPermission(RestPermissions.STREAMS_READ, streamid);
 
-        return streamRuleService.load(loadObjectId(streamRuleId));
+        return streamRuleService.load(streamRuleId);
     }
 
     @DELETE
@@ -188,7 +186,7 @@ public class StreamRuleResource extends RestResource {
                        @PathParam("streamRuleId") @NotEmpty String streamRuleId) throws NotFoundException {
         checkPermission(RestPermissions.STREAMS_EDIT, streamid);
 
-        final StreamRule streamRule = streamRuleService.load(loadObjectId(streamRuleId));
+        final StreamRule streamRule = streamRuleService.load(streamRuleId);
         if (streamRule.getStreamId().equals(streamid)) {
             streamRuleService.destroy(streamRule);
         } else {

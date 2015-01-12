@@ -21,6 +21,7 @@ import com.github.joschi.jadconfig.util.Duration;
 import com.github.joschi.jadconfig.validators.PositiveIntegerValidator;
 import com.github.joschi.jadconfig.validators.PositiveLongValidator;
 import org.graylog2.plugin.BaseConfiguration;
+import org.joda.time.DateTimeZone;
 
 import java.net.URI;
 
@@ -43,7 +44,7 @@ public class Configuration extends BaseConfiguration {
     private URI restListenUri = URI.create("http://127.0.0.1:" + GRAYLOG2_DEFAULT_PORT + "/");
 
     @Parameter(value = "output_batch_size", required = true, validator = PositiveIntegerValidator.class)
-    private int outputBatchSize = 25;
+    private int outputBatchSize = 500;
 
     @Parameter(value = "output_flush_interval", required = true, validator = PositiveIntegerValidator.class)
     private int outputFlushInterval = 1;
@@ -75,6 +76,12 @@ public class Configuration extends BaseConfiguration {
     @Parameter(value = "root_password_sha2", required = true)
     private String rootPasswordSha2;
 
+    @Parameter(value = "root_timezone")
+    private DateTimeZone rootTimeZone = DateTimeZone.UTC;
+
+    @Parameter(value = "root_email")
+    private String rootEmail = "";
+
     @Parameter(value = "allow_leading_wildcard_searches")
     private boolean allowLeadingWildcardSearches = false;
 
@@ -88,7 +95,7 @@ public class Configuration extends BaseConfiguration {
     private int loadBalancerRecognitionPeriodSeconds = 3;
 
     @Parameter(value = "http_proxy_uri")
-    private String httpProxyUri;
+    private URI httpProxyUri;
 
     @Parameter(value = "stream_processing_timeout", validator = PositiveLongValidator.class)
     private long streamProcessingTimeout = 2000;
@@ -171,6 +178,14 @@ public class Configuration extends BaseConfiguration {
         return rootPasswordSha2;
     }
 
+    public DateTimeZone getRootTimeZone() {
+        return rootTimeZone;
+    }
+
+    public String getRootEmail() {
+        return rootEmail;
+    }
+
     public boolean isAllowLeadingWildcardSearches() {
         return allowLeadingWildcardSearches;
     }
@@ -183,7 +198,7 @@ public class Configuration extends BaseConfiguration {
         return metricsCollectionEnabled;
     }
 
-    public String getHttpProxyUri() {
+    public URI getHttpProxyUri() {
         return httpProxyUri;
     }
 

@@ -27,6 +27,7 @@ import org.graylog2.database.validators.FilledStringValidator;
 import org.graylog2.database.validators.LimitedOptionalStringValidator;
 import org.graylog2.database.validators.LimitedStringValidator;
 import org.graylog2.database.validators.ListValidator;
+import org.graylog2.plugin.database.users.User;
 import org.graylog2.plugin.database.validators.Validator;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
@@ -38,6 +39,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Strings.nullToEmpty;
 
 @CollectionName("users")
 public class UserImpl extends PersistedImpl implements User {
@@ -52,6 +54,8 @@ public class UserImpl extends PersistedImpl implements User {
     public static final String TIMEZONE = "timezone";
     public static final String EXTERNAL_USER = "external_user";
     public static final String SESSION_TIMEOUT = "session_timeout_ms";
+    public static final String STARTPAGE = "startpage";
+    public static final String HASH_ALGORITHM = "SHA-1";
 
     public static final int MAX_USERNAME_LENGTH = 100;
     public static final int MAX_EMAIL_LENGTH = 254;
@@ -107,8 +111,7 @@ public class UserImpl extends PersistedImpl implements User {
 
     @Override
     public String getEmail() {
-        final Object email = fields.get(EMAIL);
-        return email == null ? "" : email.toString();
+        return nullToEmpty((String) fields.get(EMAIL));
     }
 
     @Override
@@ -142,9 +145,9 @@ public class UserImpl extends PersistedImpl implements User {
     public Map<String, String> getStartpage() {
         final Map<String, String> startpage = Maps.newHashMap();
 
-        if (fields.containsKey("startpage")) {
+        if (fields.containsKey(STARTPAGE)) {
             @SuppressWarnings("unchecked")
-            final Map<String, String> obj = (Map<String, String>) fields.get("startpage");
+            final Map<String, String> obj = (Map<String, String>) fields.get(STARTPAGE);
             startpage.put("type", obj.get("type"));
             startpage.put("id", obj.get("id"));
         }
@@ -181,14 +184,14 @@ public class UserImpl extends PersistedImpl implements User {
             // If no password is given, we leave the hashed password empty and we fail during validation.
             setHashedPassword("");
         } else {
-            final String newPassword = new SimpleHash("SHA-1", password, passwordSecret).toString();
+            final String newPassword = new SimpleHash(HASH_ALGORITHM, password, passwordSecret).toString();
             setHashedPassword(newPassword);
         }
     }
 
     @Override
     public boolean isUserPassword(final String password, final String passwordSecret) {
-        final String oldPasswordHash = new SimpleHash("SHA-1", password, passwordSecret).toString();
+        final String oldPasswordHash = new SimpleHash(HASH_ALGORITHM, password, passwordSecret).toString();
         return getHashedPassword().equals(oldPasswordHash);
     }
 
@@ -200,14 +203,22 @@ public class UserImpl extends PersistedImpl implements User {
                 return DateTimeZone.forID(o.toString());
             }
         } catch (IllegalArgumentException e) {
-            LOG.warn("Invalid timezone {} saved for user {}", o.toString(), getName());
+            LOG.warn("Invalid timezone \"{}\" saved for user \"{}\"", o, getName());
         }
         return null;
     }
 
     @Override
     public void setTimeZone(final String timeZone) {
-        fields.put(TIMEZONE, timeZone);
+        DateTimeZone dateTimeZone;
+        try {
+            dateTimeZone = DateTimeZone.forID(firstNonNull(timeZone, DateTimeZone.UTC.getID()));
+        } catch (IllegalArgumentException e) {
+            LOG.info("Invalid timezone \"{}\", falling back to UTC.", timeZone);
+            dateTimeZone = DateTimeZone.UTC;
+        }
+
+        setTimeZone(dateTimeZone);
     }
 
     @Override
@@ -239,7 +250,7 @@ public class UserImpl extends PersistedImpl implements User {
             startpage.put("id", id);
         }
 
-        this.fields.put("startpage", startpage);
+        this.fields.put(STARTPAGE, startpage);
     }
 
     public static class LocalAdminUser extends UserImpl {
@@ -261,7 +272,7 @@ public class UserImpl extends PersistedImpl implements User {
         }
 
         public String getEmail() {
-            return "none";
+            return configuration.getRootEmail();
         }
 
         @Override
@@ -296,7 +307,7 @@ public class UserImpl extends PersistedImpl implements User {
 
         @Override
         public DateTimeZone getTimeZone() {
-            return null;
+            return configuration.getRootTimeZone();
         }
 
         @Override

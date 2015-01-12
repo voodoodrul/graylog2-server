@@ -36,6 +36,7 @@ import org.graylog2.shared.inputs.MessageInputFactory;
 import org.graylog2.shared.inputs.NoSuchInputTypeException;
 import org.graylog2.shared.inputs.PersistedInputs;
 import org.graylog2.rest.models.system.inputs.requests.InputLaunchRequest;
+import org.graylog2.shared.rest.resources.system.inputs.responses.InputTypesSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,7 +113,7 @@ public class InputsResource extends RestResource {
     @GET
     @Timed
     @Path("/{inputId}")
-    public String single(@PathParam("inputId") String inputId) {
+    public InputSummary single(@PathParam("inputId") String inputId) {
         final MessageInput input = inputRegistry.getRunningInput(inputId);
 
         if (input == null) {
@@ -120,7 +121,18 @@ public class InputsResource extends RestResource {
             throw new NotFoundException();
         }
 
-        return json(input.asMap());
+        return InputSummary.create(input.getTitle(),
+                input.getPersistId(),
+                input.isGlobal(),
+                input.getName(),
+                input.getContentPack(),
+                input.getId(),
+                input.getCreatedAt(),
+                input.getClass().getCanonicalName(),
+                input.getCreatorUserId(),
+                input.getAttributesWithMaskedPasswords(),
+                input.getStaticFields()
+        );
 
     }
 
@@ -175,7 +187,7 @@ public class InputsResource extends RestResource {
                 "input_id", inputId,
                 "persist_id", inputId);
 
-        return Response.accepted().entity(json(result)).build();
+        return Response.accepted().entity(result).build();
     }
 
 
@@ -197,72 +209,28 @@ public class InputsResource extends RestResource {
         return Response.accepted().build();
     }
 
-    @GET
-    @Timed
-    @Path("/types")
-    public String types() {
-        final Map<String, Object> result = Maps.newHashMap();
-        final Map<String, InputDescription> availableInputs = messageInputFactory.getAvailableInputs();
-        final Map<String, String> inputs = Maps.newHashMap();
-        for (final String key : availableInputs.keySet()) {
-            inputs.put(key, availableInputs.get(key).getName());
-        }
-
-        result.put("types", inputs);
-
-        return json(result);
-    }
-
-    @GET
-    @Timed
-    @Path("/types/{inputType}")
-    public String info(@PathParam("inputType") String inputType) {
-        final Map<String, InputDescription> availableInputs = messageInputFactory.getAvailableInputs();
-        if (!availableInputs.containsKey(inputType)) {
-            LOG.error("Unknown input type {} requested.", inputType);
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
-        }
-        final InputDescription description = availableInputs.get(inputType);
-        final Map<String, Object> result = Maps.newHashMap();
-        result.put("type", inputType);
-        result.put("name", description.getName());
-        result.put("is_exclusive", description.isExclusive());
-        result.put("requested_configuration", description.getRequestedConfiguration());
-        result.put("link_to_docs", description.getLinkToDocs());
-
-        return json(result);
-    }
-
     @POST
     @Timed
     @Path("/{inputId}/launch")
     public Response launchExisting(@PathParam("inputId") String inputId) {
         final IOState<MessageInput> inputState = inputRegistry.getInputState(inputId);
 
-        final MessageInput input;
-        if (inputState == null) {
-            input = persistedInputs.get(inputId);
-        } else {
-            input = inputState.getStoppable();
+        if (inputState == null || inputState.getState() != IOState.Type.RUNNING) {
+            final MessageInput input = persistedInputs.get(inputId);
+
+            if (input == null) {
+                final String message = "Cannot launch input <" + inputId + ">. Input not found.";
+                LOG.info(message);
+                throw new NotFoundException(message);
+            }
+
+            LOG.info("Launching existing input [" + input.getName() + "]. Reason: REST request.");
+            //input.initialize();
+            inputLauncher.launch(input);
+            LOG.info("Launched existing input [" + input.getName() + "]. Reason: REST request.");
         }
-
-        if (input == null) {
-            final String message = "Cannot launch input <" + inputId + ">. Input not found.";
-            LOG.info(message);
-            throw new NotFoundException(message);
-        }
-
-        LOG.info("Launching existing input [" + input.getName() + "]. Reason: REST request.");
-        input.initialize();
-        inputLauncher.launch(input);
-        LOG.info("Launched existing input [" + input.getName() + "]. Reason: REST request.");
-
-        final Map<String, String> result = ImmutableMap.of(
-                "input_id", inputId,
-                "persist_id", inputId);
 
         return Response.accepted()
-                .entity(json(result))
                 .build();
     }
 
