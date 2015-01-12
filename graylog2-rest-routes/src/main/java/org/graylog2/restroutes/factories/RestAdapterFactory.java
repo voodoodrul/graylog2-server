@@ -1,17 +1,18 @@
 package org.graylog2.restroutes.factories;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.graylog2.restroutes.interceptors.BasicAuthInterceptor;
-import org.graylog2.shared.bindings.providers.ObjectMapperProvider;
 import retrofit.RestAdapter;
 import retrofit.converter.JacksonConverter;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 public class RestAdapterFactory  {
-    private final ObjectMapperProvider objectMapperProvider;
+    private final Provider<ObjectMapper> objectMapperProvider;
 
     @Inject
-    public RestAdapterFactory(ObjectMapperProvider objectMapperProvider) {
+    public RestAdapterFactory(Provider<ObjectMapper> objectMapperProvider) {
         this.objectMapperProvider = objectMapperProvider;
     }
 
