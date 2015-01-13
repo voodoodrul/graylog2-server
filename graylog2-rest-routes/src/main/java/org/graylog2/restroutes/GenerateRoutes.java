@@ -51,6 +51,12 @@ import java.util.List;
  */
 public class GenerateRoutes {
     private static final String packagePrefix = "org.graylog2.restroutes.generated";
+    private static final String sharedRouterName = packagePrefix + ".shared.NodeAPI";
+    private static final String serverRouterName = packagePrefix + ".server.ServerAPI";
+    private static final String radioRouterName = packagePrefix + ".radio.RadioAPI";
+    private static final String sharedPackageName = "org.graylog2.shared.rest.resources";
+    private static final String serverPackageName = "org.graylog2.rest.resources";
+    private static final String radioPackageName = "org.graylog2.radio.rest.resources";
 
     public static void main(String[] argv) {
         // Just "touching" class in server jar so it gets loaded.
@@ -58,44 +64,9 @@ public class GenerateRoutes {
 
         JCodeModel codeModel = new JCodeModel();
 
-        JDefinedClass router = null;
-        try {
-            router = generateRouterClass(codeModel, packagePrefix + ".API");
-        } catch (JClassAlreadyExistsException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        final List<RouteClass> sharedRouteClassList = new ResourceRoutesParser("org.graylog2.shared.rest.resources").buildClasses();
-
-        final ResourceRoutesParser parser = new ResourceRoutesParser("org.graylog2.rest.resources");
-
-        final List<RouteClass> routeClassList = parser.buildClasses();
-        routeClassList.addAll(sharedRouteClassList);
-
-        final RouteClassGenerator generator = new RouteClassGenerator(packagePrefix, codeModel);
-
-        final RouterGenerator routerGenerator = new RouterGenerator(router, generator);
-        routerGenerator.build(routeClassList);
-
-        // do the same for radio resources
-        JDefinedClass radioRouter = null;
-        try {
-            radioRouter = generateRouterClass(codeModel, packagePrefix + ".Radio");
-        } catch (JClassAlreadyExistsException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        final ResourceRoutesParser radioParser = new ResourceRoutesParser("org.graylog2.radio.rest.resources");
-        final List<RouteClass> radioRouteClassList = radioParser.buildClasses();
-        radioRouteClassList.addAll(sharedRouteClassList);
-        final RouteClassGenerator radioGenerator = new RouteClassGenerator(packagePrefix + ".radio", codeModel);
-        final RouterGenerator radioRouterGenerator = new RouterGenerator(radioRouter, radioGenerator, JMod.PUBLIC);
-        radioRouterGenerator.build(radioRouteClassList);
-
-        JMethod radioMethod = router.method(JMod.PUBLIC, radioRouter, "radio");
-        radioMethod.body().directStatement("return new " + radioRouter.name() + "(restAdapter);");
+        final JDefinedClass sharedRouter = generateRoutes(codeModel, sharedRouterName, sharedPackageName, packagePrefix + ".shared");
+        generateRoutes(codeModel, serverRouterName, serverPackageName, packagePrefix + ".server", sharedRouter);
+        generateRoutes(codeModel, radioRouterName, radioPackageName, packagePrefix + ".radio", sharedRouter);
 
         try {
             File dest = new File(argv[0]);
@@ -105,14 +76,47 @@ public class GenerateRoutes {
         }
     }
 
-    private static JDefinedClass generateRouterClass(JCodeModel codeModel, String name) throws JClassAlreadyExistsException {
-        final JDefinedClass routerClass = codeModel._class(name);
+    private static JDefinedClass generateRoutes(JCodeModel codeModel, String dstRouterClassName, String srcPackageName, String dstPackageName) {
+        return generateRoutes(codeModel, dstRouterClassName, srcPackageName, dstPackageName, null);
+    }
+
+    private static JDefinedClass generateRoutes(JCodeModel codeModel, String dstRouterClassName, String srcPackageName, String dstPackageName, JClass routerBaseClass) {
+        final JDefinedClass router;
+        try {
+            router = generateRouterClass(codeModel, dstRouterClassName, routerBaseClass);
+        } catch (JClassAlreadyExistsException e) {
+            e.printStackTrace();
+            System.exit(-1);
+            return null;
+        }
+
+        final ResourceRoutesParser parser = new ResourceRoutesParser(srcPackageName);
+
+        final List<RouteClass> routeClassList = parser.buildClasses();
+
+        final RouteClassGenerator generator = new RouteClassGenerator(dstPackageName, codeModel);
+
+        final RouterGenerator routerGenerator = new RouterGenerator(router, generator);
+        routerGenerator.build(routeClassList);
+
+        return router;
+    }
+
+    private static JDefinedClass generateRouterClass(JCodeModel codeModel, String name, JClass routerBaseClass) throws JClassAlreadyExistsException {
+        final JDefinedClass routerClass;
+        if (routerBaseClass == null)
+            routerClass = codeModel._class(name);
+        else
+            routerClass = codeModel._class(name)._extends(routerBaseClass);
         final String restAdapterFieldName = "restAdapter";
         routerClass.field(JMod.PRIVATE, RestAdapter.class, restAdapterFieldName);
         JMethod constructor = routerClass.constructor(JMod.PUBLIC);
-        constructor.param(RestAdapter.class, restAdapterFieldName);
+        final JVar restAdapterParam = constructor.param(RestAdapter.class, restAdapterFieldName);
         constructor.annotate(Inject.class);
-        constructor.body().assign(JExpr._this().ref(restAdapterFieldName), JExpr.ref(restAdapterFieldName));
+        JBlock constructorBody = constructor.body();
+        if (routerBaseClass != null)
+            constructorBody.invoke("super").arg(restAdapterParam);
+        constructorBody.assign(JExpr._this().ref(restAdapterFieldName), JExpr.ref(restAdapterFieldName));
 
         return routerClass;
     }
