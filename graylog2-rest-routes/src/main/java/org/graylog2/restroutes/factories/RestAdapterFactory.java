@@ -1,6 +1,7 @@
 package org.graylog2.restroutes.factories;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import org.graylog2.restroutes.interceptors.BasicAuthInterceptor;
 import retrofit.RestAdapter;
 import retrofit.converter.JacksonConverter;
@@ -13,6 +14,11 @@ public class RestAdapterFactory  {
     @Inject
     public RestAdapterFactory(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.objectMapper.registerModule(new JodaModule());
+    }
+
+    public RestAdapterFactory() {
+        this(new ObjectMapper());
     }
 
     private RestAdapter.Builder getBuilder(String url) {

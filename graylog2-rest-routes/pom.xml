@@ -188,5 +188,9 @@
             <groupId>com.squareup.retrofit</groupId>
             <artifactId>converter-jackson</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-joda</artifactId>
+        </dependency>
     </dependencies>
 </project>
