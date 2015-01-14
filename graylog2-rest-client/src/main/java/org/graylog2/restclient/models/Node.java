@@ -137,7 +137,7 @@ public class Node extends ClusterEntity {
     public BufferInfo getBufferInfo() {
         try {
             return new BufferInfo(
-                    api.path(routes.BufferResource().utilization(), BuffersResponse.class)
+                    api.path(routes.BuffersResource().utilization(), BuffersResponse.class)
                             .node(this)
                             .execute());
         } catch (Exception e) {
@@ -148,7 +148,7 @@ public class Node extends ClusterEntity {
 
     public BufferClassesResponse getBufferClasses() {
         try {
-            return api.path(routes.BufferResource().getBufferClasses(), BufferClassesResponse.class).node(this).execute();
+            return api.path(routes.BuffersResource().getBufferClasses(), BufferClassesResponse.class).node(this).execute();
         } catch (Exception e) {
             LOG.error("Unable to read buffer class names from node " + this, e);
         }
