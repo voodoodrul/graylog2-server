@@ -33,7 +33,10 @@
 package org.graylog2.restroutes.internal;
 
 import com.sun.codemodel.*;
+import com.wordnik.swagger.annotations.ApiOperation;
 import org.graylog2.restroutes.PathMethod;
+import retrofit.Callback;
+import retrofit.client.Response;
 import retrofit.http.Body;
 import retrofit.http.Path;
 
@@ -42,6 +45,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.PathParam;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -79,7 +83,23 @@ public class RouteClassGenerator {
         }
 
         for (Route route : routeClass.getRoutes()) {
-            JMethod method = definedClass.method(JMod.PUBLIC, route.getReturnType(), route.getMethod().getName());
+            final Class<?> returnType;
+            if (route.getReturnType().equals(javax.ws.rs.core.Response.class) ||
+                    route.getReturnType().equals(void.class)) {
+                final Method method = route.getMethod();
+                if (method.isAnnotationPresent(ApiOperation.class)) {
+                    ApiOperation apiOperation = method.getAnnotation(ApiOperation.class);
+                    if (apiOperation.response() != null && !apiOperation.response().equals(Void.class))
+                        returnType = apiOperation.response();
+                    else
+                        returnType = Response.class;
+                } else {
+                    returnType = Response.class;
+                }
+            } else
+                returnType = route.getReturnType();
+
+            final JMethod method = definedClass.method(JMod.PUBLIC, returnType, route.getMethod().getName());
             method.annotate(codeModel.ref(mapHttpMethodClass(route.getHttpMethod()))).param("value", route.getPath());
             //String path = route.getPath();
             for (Map.Entry<PathParam, Class<?>> entry : route.getPathParams().entrySet()) {
@@ -93,6 +113,9 @@ public class RouteClassGenerator {
                 method.param(route.getBodyType(), "body").annotate(Body.class);
             /*JBlock block = method.body();
             block.directStatement("return new PathMethod(\"" + route.getHttpMethod() + "\", \"" + path + "\");");*/
+
+            /*if (returnType.equals(void.class))
+                method.param(codeModel.ref(Callback.class).narrow(Response.class), "callback");*/
         }
 
         return definedClass;
