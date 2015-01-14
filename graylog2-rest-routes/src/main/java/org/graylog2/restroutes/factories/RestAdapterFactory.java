@@ -6,20 +6,19 @@ import retrofit.RestAdapter;
 import retrofit.converter.JacksonConverter;
 
 import javax.inject.Inject;
-import javax.inject.Provider;
 
 public class RestAdapterFactory  {
-    private final Provider<ObjectMapper> objectMapperProvider;
+    private final ObjectMapper objectMapper;
 
     @Inject
-    public RestAdapterFactory(Provider<ObjectMapper> objectMapperProvider) {
-        this.objectMapperProvider = objectMapperProvider;
+    public RestAdapterFactory(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     private RestAdapter.Builder getBuilder(String url) {
         final RestAdapter.Builder builder = new RestAdapter.Builder();
         builder.setEndpoint(url);
-        builder.setConverter(new JacksonConverter(objectMapperProvider.get()));
+        builder.setConverter(new JacksonConverter(objectMapper));
         return builder;
     }
 
