@@ -1,10 +1,10 @@
 package org.graylog2.restroutes.interceptors;
 
-import com.ning.http.util.Base64;
 import retrofit.RequestInterceptor;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.xml.bind.DatatypeConverter;
 
 public class BasicAuthInterceptor implements RequestInterceptor {
     private final String username;
@@ -23,6 +23,6 @@ public class BasicAuthInterceptor implements RequestInterceptor {
     }
 
     private String getAuthenticationHeader(String username, String password) {
-        return "Basic " + Base64.encode((username + ":" + password).getBytes());
+        return "Basic " + DatatypeConverter.printBase64Binary((username + ":" + password).getBytes());
     }
 }
