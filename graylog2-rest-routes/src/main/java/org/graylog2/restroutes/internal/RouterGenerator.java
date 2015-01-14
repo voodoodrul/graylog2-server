@@ -70,9 +70,11 @@ public class RouterGenerator {
     }
 
     private void addRouterMethod(JDefinedClass router, JDefinedClass definedClass) {
-        String className = definedClass.fullName();
-        JMethod method = router.method(generateMods, definedClass, definedClass.name());
-        JBlock block = method.body();
+        final String className = definedClass.fullName();
+        final String firstLetter = Character.toString(definedClass.name().charAt(0));
+        final String methodName = definedClass.name().split("Resource$")[0].replaceFirst("^"+firstLetter, firstLetter.toLowerCase());
+        final JMethod method = router.method(generateMods, definedClass, methodName);
+        final JBlock block = method.body();
         block.directStatement("return restAdapter.create(" + className + ".class);");
     }
 }
