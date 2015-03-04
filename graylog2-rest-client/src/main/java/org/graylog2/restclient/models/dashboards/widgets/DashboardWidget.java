@@ -37,7 +37,8 @@ public abstract class DashboardWidget {
         FIELD_CHART,
         QUICKVALUES,
         SEARCH_RESULT_CHART,
-        STATS_COUNT
+        STATS_COUNT,
+        MAP
     }
 
     private final Type type;
@@ -212,6 +213,19 @@ public abstract class DashboardWidget {
                         (String) w.config.get("field"),
                         (String) w.config.get("stats_function"),
                         (w.config.containsKey("stream_id") ? (String) w.config.get("stream_id") : null),
+                        w.creatorUserId
+                );
+                break;
+            case MAP:
+                widget = new MapWidget(
+                        dashboard,
+                        w.id,
+                        w.description,
+                        (w.config.containsKey("stream_id") ? (String) w.config.get("stream_id") : null),
+                        w.cacheTime,
+                        (String) w.config.get("query"),
+                        TimeRange.factory((Map<String, Object>) w.config.get("timerange")),
+                        (String) w.config.get("field"),
                         w.creatorUserId
                 );
                 break;

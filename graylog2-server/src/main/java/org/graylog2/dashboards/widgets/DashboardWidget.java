@@ -56,7 +56,8 @@ public abstract class DashboardWidget implements EmbeddedPersistable {
         FIELD_CHART,
         QUICKVALUES,
         SEARCH_RESULT_CHART,
-        STATS_COUNT
+        STATS_COUNT,
+        MAP
     }
 
     public static final int DEFAULT_CACHE_TIME = 10;
@@ -218,6 +219,15 @@ public abstract class DashboardWidget implements EmbeddedPersistable {
                         creatorUserId);
             case STATS_COUNT:
                 return new StatisticalCountWidget(metricRegistry, searches,
+                        widgetId,
+                        description,
+                        cacheTime,
+                        config,
+                        query,
+                        timeRange,
+                        creatorUserId);
+            case MAP:
+                return new MapWidget(metricRegistry, searches,
                         widgetId,
                         description,
                         cacheTime,
