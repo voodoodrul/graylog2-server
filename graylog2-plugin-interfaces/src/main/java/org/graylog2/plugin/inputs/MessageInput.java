@@ -1,6 +1,6 @@
 /**
  * The MIT License
- * Copyright (c) 2012 TORCH GmbH
+ * Copyright (c) 2012 Graylog, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,6 @@ package org.graylog2.plugin.inputs;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
-import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.Maps;
 import org.graylog2.plugin.AbstractDescriptor;
@@ -37,7 +36,6 @@ import org.graylog2.plugin.buffers.InputBuffer;
 import org.graylog2.plugin.configuration.Configuration;
 import org.graylog2.plugin.configuration.ConfigurationException;
 import org.graylog2.plugin.configuration.ConfigurationRequest;
-import org.graylog2.plugin.configuration.fields.TextField;
 import org.graylog2.plugin.inputs.codecs.Codec;
 import org.graylog2.plugin.inputs.transports.Transport;
 import org.graylog2.plugin.journal.RawMessage;
@@ -45,9 +43,7 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public abstract class MessageInput implements Stoppable {
@@ -77,11 +73,7 @@ public abstract class MessageInput implements Stoppable {
     private final Codec codec;
     private final Descriptor descriptor;
     private final ServerStatus serverStatus;
-    private final Meter failures;
-    private final Meter incompleteMessages;
     private final Meter incomingMessages;
-    private final Meter processedMessages;
-    private final Timer parseTime;
     private final Meter rawSize;
     private final Map<String, String> staticFields = Maps.newConcurrentMap();
     private final ConfigurationRequest requestedConfiguration;
@@ -102,6 +94,7 @@ public abstract class MessageInput implements Stoppable {
     protected final Configuration configuration;
     protected InputBuffer inputBuffer;
     private String nodeId;
+    private MetricSet transportMetrics;
 
     public MessageInput(MetricRegistry metricRegistry,
                         Configuration configuration,
@@ -122,10 +115,6 @@ public abstract class MessageInput implements Stoppable {
         this.serverStatus = serverStatus;
         this.requestedConfiguration = config.combinedRequestedConfiguration();
         this.codecConfig = config.codecConfig.getRequestedConfiguration().filter(codec.getConfiguration());
-        parseTime = localRegistry.timer("parseTime");
-        processedMessages = localRegistry.meter("processedMessages");
-        failures = localRegistry.meter("failures");
-        incompleteMessages = localRegistry.meter("incompleteMessages");
         rawSize = localRegistry.meter("rawSize");
         incomingMessages = localRegistry.meter("incomingMessages");
     }
@@ -139,7 +128,7 @@ public abstract class MessageInput implements Stoppable {
     }
 
     public void initialize() {
-        final MetricSet transportMetrics = transport.getMetricSet();
+        this.transportMetrics = transport.getMetricSet();
 
         if (transportMetrics != null) {
             metricRegistry.register(getUniqueReadableId(), transportMetrics);
@@ -166,6 +155,16 @@ public abstract class MessageInput implements Stoppable {
 
     public void stop() {
         transport.stop();
+    }
+
+    public void terminate() {
+        if (localRegistry != null && localRegistry.getMetrics() != null)
+            for (String metricName : localRegistry.getMetrics().keySet())
+                metricRegistry.remove(getUniqueReadableId() + "." + metricName);
+
+        if (this.transportMetrics != null && this.transportMetrics.getMetrics() != null)
+            for (String metricName : this.transportMetrics.getMetrics().keySet())
+                metricRegistry.remove(getUniqueReadableId() + "." + metricName);
     }
 
     public ConfigurationRequest getRequestedConfiguration() {
@@ -242,37 +241,9 @@ public abstract class MessageInput implements Stoppable {
         this.contentPack = contentPack;
     }
 
-    @SuppressWarnings("unchecked")
+    @Deprecated
     public Map<String, Object> getAttributesWithMaskedPasswords() {
-        final ConfigurationRequest config = getRequestedConfiguration();
-        if (config == null) {
-            return Collections.emptyMap();
-        }
-
-        final Map<String, Object> attributes = configuration.getSource();
-        final Map<String, Object> result = Maps.newHashMapWithExpectedSize(attributes.size());
-        for (Map.Entry<String, Object> attribute : attributes.entrySet()) {
-            Object value = attribute.getValue();
-
-            final Map<String, Map<String, Object>> configAsList = config.asList();
-            final Map<String, Object> attributesForConfigSetting = configAsList.get(attribute.getKey());
-
-            if (attributesForConfigSetting != null) {
-                // we know the config setting, check its attributes
-                final List<String> attrs = (List<String>) attributesForConfigSetting.get("attributes");
-                if (attrs.contains(TextField.Attribute.IS_PASSWORD.toString().toLowerCase())) {
-                    value = "********";
-                }
-            } else {
-                // safety measure, although this is bad.
-                LOG.warn("Unknown input configuration setting {}={} found. Not trying to mask its value," +
-                        " though this is likely a bug.", attribute, value);
-            }
-
-            result.put(attribute.getKey(), value);
-        }
-
-        return result;
+        return configuration.getSource();
     }
 
     @JsonValue

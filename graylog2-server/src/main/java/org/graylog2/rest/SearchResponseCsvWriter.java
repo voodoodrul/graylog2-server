@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest;
 
@@ -22,6 +22,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.graylog2.indexer.results.ResultMessage;
 import org.graylog2.rest.resources.search.responses.SearchResponse;
+import org.graylog2.shared.rest.AdditionalMediaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,16 +40,14 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 
 @Provider
-@Produces("text/csv")
+@Produces(AdditionalMediaType.TEXT_CSV)
 public class SearchResponseCsvWriter implements MessageBodyWriter<SearchResponse> {
-
-    public static final MediaType TEXT_CSV = new MediaType("text", "csv");
 
     private static final Logger LOG = LoggerFactory.getLogger(SearchResponseCsvWriter.class);
 
     @Override
     public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
-        return SearchResponse.class.equals(type) && TEXT_CSV.isCompatible(mediaType);
+        return SearchResponse.class.equals(type) && AdditionalMediaType.TEXT_CSV_TYPE.isCompatible(mediaType);
     }
 
     @Override

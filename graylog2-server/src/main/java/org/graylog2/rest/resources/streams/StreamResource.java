@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.streams;
 
@@ -29,6 +29,9 @@ import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.bson.types.ObjectId;
 import org.cliffc.high_scale_lib.Counter;
+import org.graylog2.alarmcallbacks.AlarmCallbackConfiguration;
+import org.graylog2.alarmcallbacks.AlarmCallbackConfigurationService;
+import org.graylog2.alarmcallbacks.CreateAlarmCallbackRequest;
 import org.graylog2.database.NotFoundException;
 import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.plugin.Message;
@@ -66,7 +69,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -87,16 +89,19 @@ public class StreamResource extends RestResource {
     private final StreamRuleService streamRuleService;
     private final StreamRouterEngine.Factory streamRouterEngineFactory;
     private final ThroughputStats throughputStats;
+    private final AlarmCallbackConfigurationService alarmCallbackConfigurationService;
 
     @Inject
     public StreamResource(StreamService streamService,
                           StreamRuleService streamRuleService,
                           StreamRouterEngine.Factory streamRouterEngineFactory,
-                          ThroughputStats throughputStats) {
+                          ThroughputStats throughputStats,
+                          AlarmCallbackConfigurationService alarmCallbackConfigurationService) {
         this.streamService = streamService;
         this.streamRuleService = streamRuleService;
         this.streamRouterEngineFactory = streamRouterEngineFactory;
         this.throughputStats = throughputStats;
+        this.alarmCallbackConfigurationService = alarmCallbackConfigurationService;
     }
 
     @POST
@@ -106,8 +111,6 @@ public class StreamResource extends RestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response create(@ApiParam(name = "JSON body", required = true) final CreateStreamRequest cr) throws ValidationException {
-        checkPermission(RestPermissions.STREAMS_CREATE);
-
         // Create stream.
         final Stream stream = streamService.create(cr, getCurrentUser().getName());
         stream.setDisabled(true);
@@ -121,7 +124,7 @@ public class StreamResource extends RestResource {
         }
 
         final Map<String, String> result = ImmutableMap.of("stream_id", id);
-        final URI streamUri = UriBuilder.fromResource(StreamResource.class)
+        final URI streamUri = getUriBuilderToSelf().path(StreamResource.class)
                 .path("{streamId}")
                 .build(id);
 
@@ -181,7 +184,6 @@ public class StreamResource extends RestResource {
     @Timed
     @Path("/{streamId}")
     @ApiOperation(value = "Update a stream")
-    @RequiresPermissions(RestPermissions.STREAMS_EDIT)
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiResponses(value = {
@@ -284,7 +286,6 @@ public class StreamResource extends RestResource {
     @Path("/{streamId}/clone")
     @Timed
     @ApiOperation(value = "Clone a stream")
-    @RequiresPermissions(RestPermissions.STREAMS_CREATE)
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "Stream not found."),
             @ApiResponse(code = 400, message = "Invalid or missing Stream id.")
@@ -330,6 +331,14 @@ public class StreamResource extends RestResource {
             streamService.addAlertCondition(stream, alertCondition);
         }
 
+        for (AlarmCallbackConfiguration alarmCallbackConfiguration : alarmCallbackConfigurationService.getForStream(sourceStream)) {
+            final CreateAlarmCallbackRequest request = new CreateAlarmCallbackRequest();
+            request.type = alarmCallbackConfiguration.getType();
+            request.configuration = alarmCallbackConfiguration.getConfiguration().getSource();
+            final AlarmCallbackConfiguration alarmCallback = alarmCallbackConfigurationService.create(stream.getId(), request, getCurrentUser().getName());
+            alarmCallbackConfigurationService.save(alarmCallback);
+        }
+
         for (Map.Entry<String, List<String>> entry : sourceStream.getAlertReceivers().entrySet()) {
             for (String receiver : entry.getValue()) {
                 streamService.addAlertReceiver(stream, entry.getKey(), receiver);
@@ -341,7 +350,7 @@ public class StreamResource extends RestResource {
         }
 
         final Map<String, String> result = ImmutableMap.of("stream_id", id);
-        final URI streamUri = UriBuilder.fromResource(StreamResource.class)
+        final URI streamUri = getUriBuilderToSelf().path(StreamResource.class)
                 .path("{streamId}")
                 .build(id);
 

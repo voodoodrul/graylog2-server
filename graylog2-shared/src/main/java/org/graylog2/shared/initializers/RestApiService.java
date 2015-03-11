@@ -1,27 +1,27 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.shared.initializers;
 
 import com.codahale.metrics.InstrumentedExecutorService;
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -31,12 +31,13 @@ import org.glassfish.jersey.server.model.Resource;
 import org.graylog2.jersey.container.netty.NettyContainer;
 import org.graylog2.jersey.container.netty.SecurityContextFactory;
 import org.graylog2.plugin.BaseConfiguration;
-import org.graylog2.plugin.rest.AnyExceptionClassMapper;
-import org.graylog2.plugin.rest.JacksonPropertyExceptionMapper;
 import org.graylog2.plugin.rest.PluginRestResource;
-import org.graylog2.plugin.rest.WebApplicationExceptionMapper;
 import org.graylog2.shared.rest.CORSFilter;
 import org.graylog2.shared.rest.PrintModelProcessor;
+import org.graylog2.shared.rest.exceptionmappers.AnyExceptionClassMapper;
+import org.graylog2.shared.rest.exceptionmappers.JacksonPropertyExceptionMapper;
+import org.graylog2.shared.rest.exceptionmappers.JsonProcessingExceptionMapper;
+import org.graylog2.shared.rest.exceptionmappers.WebApplicationExceptionMapper;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -91,6 +92,7 @@ public class RestApiService extends AbstractIdleService {
     private final Set<Class<? extends DynamicFeature>> dynamicFeatures;
     private final Set<Class<? extends ContainerResponseFilter>> containerResponseFilters;
     private final Set<Class<? extends ExceptionMapper>> exceptionMappers;
+    private final Set<Class> additionalComponents;
     private final Map<String, Set<PluginRestResource>> pluginRestResources;
 
     private final ServerBootstrap bootstrap;
@@ -104,11 +106,12 @@ public class RestApiService extends AbstractIdleService {
                           Set<Class<? extends DynamicFeature>> dynamicFeatures,
                           Set<Class<? extends ContainerResponseFilter>> containerResponseFilters,
                           Set<Class<? extends ExceptionMapper>> exceptionMappers,
+                          @Named("additionalJerseyComponents") Set<Class> additionalComponents,
                           Map<String, Set<PluginRestResource>> pluginRestResources,
                           @Named("RestControllerPackages") String[] restControllerPackages,
                           Provider<ObjectMapper> objectMapperProvider) {
         this(configuration, metricRegistry, securityContextFactory, dynamicFeatures, containerResponseFilters,
-                exceptionMappers, pluginRestResources,
+                exceptionMappers, additionalComponents, pluginRestResources,
                 instrumentedExecutor("boss-executor-service", "restapi-boss-%d", metricRegistry),
                 instrumentedExecutor("worker-executor-service", "restapi-worker-%d", metricRegistry),
                 restControllerPackages, objectMapperProvider);
@@ -120,13 +123,14 @@ public class RestApiService extends AbstractIdleService {
                            final Set<Class<? extends DynamicFeature>> dynamicFeatures,
                            final Set<Class<? extends ContainerResponseFilter>> containerResponseFilters,
                            final Set<Class<? extends ExceptionMapper>> exceptionMappers,
+                           final Set<Class> additionalComponents,
                            final Map<String, Set<PluginRestResource>> pluginRestResources,
                            final ExecutorService bossExecutor,
                            final ExecutorService workerExecutor,
                            final String[] restControllerPackages,
                            Provider<ObjectMapper> objectMapperProvider) {
         this(configuration, metricRegistry, securityContextFactory, dynamicFeatures,
-                containerResponseFilters, exceptionMappers, pluginRestResources,
+                containerResponseFilters, exceptionMappers, additionalComponents, pluginRestResources,
                 buildServerBootStrap(bossExecutor, workerExecutor, configuration.getRestWorkerThreadsMaxPoolSize()),
                 restControllerPackages, objectMapperProvider);
     }
@@ -137,6 +141,7 @@ public class RestApiService extends AbstractIdleService {
                            final Set<Class<? extends DynamicFeature>> dynamicFeatures,
                            final Set<Class<? extends ContainerResponseFilter>> containerResponseFilters,
                            final Set<Class<? extends ExceptionMapper>> exceptionMappers,
+                           final Set<Class> additionalComponents,
                            final Map<String, Set<PluginRestResource>> pluginRestResources,
                            final ServerBootstrap bootstrap,
                            final String[] restControllerPackages,
@@ -151,6 +156,7 @@ public class RestApiService extends AbstractIdleService {
         this.bootstrap = bootstrap;
         this.restControllerPackages = restControllerPackages;
         this.objectMapperProvider = objectMapperProvider;
+        this.additionalComponents = additionalComponents;
     }
 
     private static ExecutorService instrumentedExecutor(final String executorName, final String threadNameFormat, final MetricRegistry metricRegistry) {
@@ -263,16 +269,17 @@ public class RestApiService extends AbstractIdleService {
         ResourceConfig rc = new ResourceConfig()
                 .property(NettyContainer.PROPERTY_BASE_URI, listenUri)
                 .registerClasses(
+                        JacksonJaxbJsonProvider.class,
+                        JsonProcessingExceptionMapper.class,
                         JacksonPropertyExceptionMapper.class,
                         AnyExceptionClassMapper.class,
                         WebApplicationExceptionMapper.class)
                 .register(new ContextResolver<ObjectMapper>() {
-                              @Override
-                              public ObjectMapper getContext(Class<?> type) {
-                                  return objectMapper;
-                              }
-                          })
-                .register(JacksonFeature.class)
+                    @Override
+                    public ObjectMapper getContext(Class<?> type) {
+                        return objectMapper;
+                    }
+                })
                 .registerFinder(new PackageNamesScanner(restControllerPackages, true))
                 .registerResources(additionalResources);
 
@@ -287,6 +294,9 @@ public class RestApiService extends AbstractIdleService {
         for (Class<? extends ContainerResponseFilter> responseFilter : containerResponseFilters) {
             rc.registerClasses(responseFilter);
         }
+
+        for (Class additionalComponent : additionalComponents)
+            rc.registerClasses(additionalComponent);
 
         if (enableGzip) {
             EncodingFilter.enableFor(rc, GZipEncoder.class);

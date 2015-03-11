@@ -1,24 +1,23 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.streams;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import javax.inject.Inject;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import org.bson.types.ObjectId;
@@ -27,12 +26,12 @@ import org.graylog2.alerts.AlertService;
 import org.graylog2.database.MongoConnection;
 import org.graylog2.database.NotFoundException;
 import org.graylog2.database.PersistedServiceImpl;
-import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.notifications.Notification;
 import org.graylog2.notifications.NotificationService;
 import org.graylog2.plugin.Tools;
 import org.graylog2.plugin.alarms.AlertCondition;
 import org.graylog2.plugin.database.EmbeddedPersistable;
+import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.plugin.streams.Output;
 import org.graylog2.plugin.streams.Stream;
 import org.graylog2.plugin.streams.StreamRule;
@@ -40,6 +39,7 @@ import org.graylog2.rest.resources.streams.requests.CreateStreamRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -99,6 +99,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         return create(streamData);
     }
 
+    @Override
     public Stream load(String id) throws NotFoundException {
         try {
             return load(new ObjectId(id));
@@ -107,6 +108,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         }
     }
 
+    @Override
     public List<Stream> loadAllEnabled() {
         return loadAllEnabled(new HashMap<String, Object>());
     }
@@ -118,6 +120,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         return loadAll(additionalQueryOpts);
     }
 
+    @Override
     public List<Stream> loadAll() {
         return loadAll(new HashMap<String, Object>());
     }
@@ -151,6 +154,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         return streams;
     }
 
+    @Override
     public List<Stream> loadAllWithConfiguredAlertConditions() {
         // Explanation: alert_conditions.1 is the first Array element.
         Map<String, Object> queryOpts = Collections.<String, Object>singletonMap(
@@ -172,9 +176,14 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
                 }
 
         return result;
-
     }
 
+    @Override
+    public long count() {
+        return totalCount(StreamImpl.class);
+    }
+
+    @Override
     public void destroy(Stream stream) throws NotFoundException {
         for (StreamRule streamRule : streamRuleService.loadForStream(stream)) {
             super.destroy(streamRule);
@@ -218,6 +227,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         return streamRuleService.loadForStream(stream);
     }
 
+    @Override
     public List<AlertCondition> getAlertConditions(Stream stream) {
         List<AlertCondition> conditions = Lists.newArrayList();
 
@@ -259,6 +269,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         throw new org.graylog2.database.NotFoundException();
     }
 
+    @Override
     public void addAlertCondition(Stream stream, AlertCondition condition) throws ValidationException {
         embed(stream, StreamImpl.EMBEDDED_ALERT_CONDITIONS, (EmbeddedPersistable) condition);
     }
@@ -273,6 +284,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         removeEmbedded(stream, StreamImpl.EMBEDDED_ALERT_CONDITIONS, conditionId);
     }
 
+    @Override
     public void addAlertReceiver(Stream stream, String type, String name) {
         collection(stream).update(
                 new BasicDBObject("_id", new ObjectId(stream.getId())),
@@ -280,6 +292,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         );
     }
 
+    @Override
     public void removeAlertReceiver(Stream stream, String type, String name) {
         collection(stream).update(
                 new BasicDBObject("_id", new ObjectId(stream.getId())),
@@ -303,6 +316,7 @@ public class StreamServiceImpl extends PersistedServiceImpl implements StreamSer
         );
     }
 
+    @Override
     public void removeOutputFromAllStreams(Output output) {
         ObjectId outputId = new ObjectId(output.getId());
         DBObject match = new BasicDBObject(StreamImpl.FIELD_OUTPUTS, outputId);

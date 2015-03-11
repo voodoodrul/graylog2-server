@@ -1,23 +1,23 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.alarmcallbacks;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import javax.inject.Inject;
 import org.graylog2.alerts.AlertSender;
 import org.graylog2.alerts.FormattedEmailAlertSender;
 import org.graylog2.notifications.Notification;
@@ -34,16 +34,13 @@ import org.graylog2.plugin.configuration.fields.ConfigurationField;
 import org.graylog2.plugin.configuration.fields.TextField;
 import org.graylog2.plugin.streams.Stream;
 import org.graylog2.plugin.system.NodeId;
-import org.graylog2.shared.utilities.ExceptionStringFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 
-/**
- * @author Dennis Oelkers <dennis@torch.sh>
- */
 public class EmailAlarmCallback implements AlarmCallback {
     private static final Logger LOG = LoggerFactory.getLogger(EmailAlarmCallback.class);
     private final AlertSender alertSender;
@@ -88,7 +85,7 @@ public class EmailAlarmCallback implements AlarmCallback {
                         .addType(Notification.Type.EMAIL_TRANSPORT_CONFIGURATION_INVALID)
                         .addSeverity(Notification.Severity.NORMAL)
                         .addDetail("stream_id", stream.getId())
-                        .addDetail("exception", new ExceptionStringFormatter(e).toString());
+                        .addDetail("exception", Throwables.getStackTraceAsString(e));
                 notificationService.publishIfFirst(notification);
             } catch (Exception e) {
                 LOG.error("Stream [" + stream + "] has alert receivers and is triggered, but sending emails failed", e);
@@ -114,13 +111,13 @@ public class EmailAlarmCallback implements AlarmCallback {
         ConfigurationRequest configurationRequest = new ConfigurationRequest();
         configurationRequest.addField(new TextField("sender",
                 "Sender",
-                "graylog2@example.org",
+                "graylog@example.org",
                 "The sender of sent out mail alerts",
                 ConfigurationField.Optional.NOT_OPTIONAL));
 
         configurationRequest.addField(new TextField("subject",
                 "E-Mail Subject",
-                "Graylog2 alert for stream: ${stream.title}",
+                "Graylog alert for stream: ${stream.title}",
                 "The subject of sent out mail alerts",
                 ConfigurationField.Optional.NOT_OPTIONAL));
 

@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.security.realm;
 
@@ -38,22 +38,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class LdapUserAuthenticator extends AuthenticatingRealm {
     private static final Logger LOG = LoggerFactory.getLogger(LdapUserAuthenticator.class);
 
     private final LdapConnector ldapConnector;
 
-    private final AtomicReference<LdapSettings> settings;
+    private final LdapSettingsService ldapSettingsService;
     private final UserService userService;
 
     public LdapUserAuthenticator(LdapConnector ldapConnector, LdapSettingsService ldapSettingsService, UserService userService) {
         this.ldapConnector = ldapConnector;
         this.userService = userService;
+        this.ldapSettingsService = ldapSettingsService;
         setAuthenticationTokenClass(UsernamePasswordToken.class);
         setCredentialsMatcher(new AllowAllCredentialsMatcher());
-        this.settings = new AtomicReference<LdapSettings>(ldapSettingsService.load());
     }
 
     @Override
@@ -62,7 +61,7 @@ public class LdapUserAuthenticator extends AuthenticatingRealm {
         UsernamePasswordToken token = (UsernamePasswordToken) authtoken;
 
         final LdapConnectionConfig config = new LdapConnectionConfig();
-        final LdapSettings ldapSettings = settings.get();
+        final LdapSettings ldapSettings = ldapSettingsService.load();
         if (ldapSettings == null || !ldapSettings.isEnabled()) {
             LOG.trace("LDAP is disabled, skipping");
             return null;
@@ -133,10 +132,6 @@ public class LdapUserAuthenticator extends AuthenticatingRealm {
     }
 
     public boolean isEnabled() {
-        return settings.get().isEnabled();
-    }
-
-    public void applySettings(LdapSettings ldapSettings) {
-        settings.set(ldapSettings);
+        return ldapSettingsService.load().isEnabled();
     }
 }

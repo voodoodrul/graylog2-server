@@ -1,25 +1,24 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.dashboards.widgets;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import org.graylog2.indexer.IndexHelper;
 import org.graylog2.indexer.results.CountResult;
 import org.graylog2.indexer.searches.Searches;
 import org.graylog2.indexer.searches.timeranges.AbsoluteRange;
@@ -76,25 +75,21 @@ public class SearchResultCountWidget extends DashboardWidget {
     }
 
     protected ComputationResult computeInternal(String filter) {
-        try {
-            CountResult cr = searches.count(query, timeRange, filter);
-            if (trend && timeRange instanceof RelativeRange) {
-                DateTime toPrevious = timeRange.getFrom();
-                DateTime fromPrevious = toPrevious.minus(Seconds.seconds(((RelativeRange) timeRange).getRange()));
-                TimeRange previousTimeRange = new AbsoluteRange(fromPrevious, toPrevious);
-                CountResult previousCr = searches.count(query, previousTimeRange);
+        CountResult cr = searches.count(query, timeRange, filter);
+        if (trend && timeRange instanceof RelativeRange) {
+            DateTime toPrevious = timeRange.getFrom();
+            DateTime fromPrevious = toPrevious.minus(Seconds.seconds(((RelativeRange) timeRange).getRange()));
+            TimeRange previousTimeRange = new AbsoluteRange(fromPrevious, toPrevious);
+            CountResult previousCr = searches.count(query, previousTimeRange);
 
-                Map<String, Object> results = Maps.newHashMap();
-                results.put("now", cr.getCount());
-                results.put("previous", previousCr.getCount());
-                long tookMs = cr.getTookMs() + previousCr.getTookMs();
+            Map<String, Object> results = Maps.newHashMap();
+            results.put("now", cr.getCount());
+            results.put("previous", previousCr.getCount());
+            long tookMs = cr.getTookMs() + previousCr.getTookMs();
 
-                return new ComputationResult(results, tookMs);
-            } else {
-                return new ComputationResult(cr.getCount(), cr.getTookMs());
-            }
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            throw new RuntimeException("Invalid timerange format.", e);
+            return new ComputationResult(results, tookMs);
+        } else {
+            return new ComputationResult(cr.getCount(), cr.getTookMs());
         }
     }
 }

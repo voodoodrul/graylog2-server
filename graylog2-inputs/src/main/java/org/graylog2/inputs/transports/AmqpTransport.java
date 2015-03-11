@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.inputs.transports;
 
@@ -56,6 +56,7 @@ public class AmqpTransport extends ThrottleableTransport {
     public static final String CK_ROUTING_KEY = "routing_key";
     public static final String CK_PARALLEL_QUEUES = "parallel_queues";
     public static final String CK_TLS = "tls";
+    public static final String CK_REQUEUE_INVALID_MESSAGES = "requeue_invalid_messages";
 
     private static final Logger LOG = LoggerFactory.getLogger(AmqpTransport.class);
 
@@ -151,6 +152,7 @@ public class AmqpTransport extends ThrottleableTransport {
                 configuration.getString(CK_ROUTING_KEY),
                 configuration.getInt(CK_PARALLEL_QUEUES),
                 configuration.getBoolean(CK_TLS),
+                configuration.getBoolean(CK_REQUEUE_INVALID_MESSAGES),
                 input,
                 scheduler,
                 this
@@ -292,7 +294,7 @@ public class AmqpTransport extends ThrottleableTransport {
                             CK_PARALLEL_QUEUES,
                             "Number of Queues",
                             1,
-                            "Number of parallel QUeues",
+                            "Number of parallel Queues",
                             ConfigurationField.Optional.NOT_OPTIONAL
                     )
             );
@@ -303,6 +305,15 @@ public class AmqpTransport extends ThrottleableTransport {
                             "Enable TLS?",
                             false,
                             "Enable transport encryption via TLS. (requires valid TLS port setting)"
+                    )
+            );
+
+            cr.addField(
+                    new BooleanField(
+                            CK_REQUEUE_INVALID_MESSAGES,
+                            "Re-queue invalid messages?",
+                            true,
+                            "Invalid messages will be discarded if disabled."
                     )
             );
 

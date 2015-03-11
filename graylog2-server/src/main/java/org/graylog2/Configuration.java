@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2;
 
@@ -68,7 +68,7 @@ public class Configuration extends BaseConfiguration {
     private String droolsRulesFile;
 
     @Parameter(value = "node_id_file")
-    private String nodeIdFile = "/etc/graylog2-server-node-id";
+    private String nodeIdFile = "/etc/graylog/server/node-id";
 
     @Parameter(value = "root_username")
     private String rootUsername = "admin";
@@ -102,6 +102,12 @@ public class Configuration extends BaseConfiguration {
 
     @Parameter(value = "output_module_timeout", validator = PositiveLongValidator.class)
     private long outputModuleTimeout = 10000;
+
+    @Parameter(value = "output_fault_count_threshold", validator = PositiveLongValidator.class)
+    private long outputFaultCountThreshold = 5;
+
+    @Parameter(value = "output_fault_penalty_seconds", validator = PositiveLongValidator.class)
+    private long outputFaultPenaltySeconds = 30;
 
     @Parameter(value = "stale_master_timeout", validator = PositiveIntegerValidator.class)
     private int staleMasterTimeout = 2000;
@@ -213,6 +219,14 @@ public class Configuration extends BaseConfiguration {
 
     public long getOutputModuleTimeout() {
         return outputModuleTimeout;
+    }
+
+    public long getOutputFaultCountThreshold() {
+        return outputFaultCountThreshold;
+    }
+
+    public long getOutputFaultPenaltySeconds() {
+        return outputFaultPenaltySeconds;
     }
 
     public int getStaleMasterTimeout() {

@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.outputs;
 
@@ -30,14 +30,22 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 
 @Test
 public class OutputRegistryTest {
+    private static final long FAULT_COUNT_THRESHOLD = 5;
+    private static final long FAULT_PENALTY_SECONDS = 30;
+
     @Mock
     private MessageOutput messageOutput;
     @Mock
@@ -46,14 +54,18 @@ public class OutputRegistryTest {
     private Output output;
     @Mock
     private OutputService outputService;
+    @Mock
+    private org.graylog2.Configuration configuration;
 
     @BeforeMethod
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        when(configuration.getOutputFaultCountThreshold()).thenReturn(FAULT_COUNT_THRESHOLD);
+        when(configuration.getOutputFaultPenaltySeconds()).thenReturn(FAULT_PENALTY_SECONDS);
     }
 
     public void testMessageOutputsIncludesDefault() {
-        OutputRegistry registry = new OutputRegistry(messageOutput, null, null);
+        OutputRegistry registry = new OutputRegistry(messageOutput, null, null, null, null, FAULT_COUNT_THRESHOLD, FAULT_PENALTY_SECONDS);
 
         Set<MessageOutput> outputs = registry.getMessageOutputs();
         assertSame(Iterables.getOnlyElement(outputs, null), messageOutput, "we should only have the default MessageOutput");
@@ -62,7 +74,7 @@ public class OutputRegistryTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testThrowExceptionForUnknownOutputType() throws MessageOutputConfigurationException {
         when(messageOutputFactory.fromStreamOutput(eq(output), any(Stream.class), any(Configuration.class))).thenReturn(null);
-        OutputRegistry registry = new OutputRegistry(null, null, messageOutputFactory);
+        OutputRegistry registry = new OutputRegistry(null, null, messageOutputFactory, null, null, FAULT_COUNT_THRESHOLD, FAULT_PENALTY_SECONDS);
 
         registry.launchOutput(output, null);
 
@@ -75,7 +87,7 @@ public class OutputRegistryTest {
         when(messageOutputFactory.fromStreamOutput(eq(output), eq(stream), any(Configuration.class))).thenReturn(messageOutput);
         when(outputService.load(eq(outputId))).thenReturn(output);
 
-        final OutputRegistry outputRegistry = new OutputRegistry(null, outputService, messageOutputFactory);
+        final OutputRegistry outputRegistry = new OutputRegistry(null, outputService, messageOutputFactory, null, null, FAULT_COUNT_THRESHOLD, FAULT_PENALTY_SECONDS);
         assertEquals(outputRegistry.getRunningMessageOutputs().size(), 0);
 
         MessageOutput result = outputRegistry.getOutputForIdAndStream(outputId, stream);
@@ -90,7 +102,7 @@ public class OutputRegistryTest {
         final Stream stream = mock(Stream.class);
         when(outputService.load(eq(outputId))).thenThrow(NotFoundException.class);
 
-        final OutputRegistry outputRegistry = new OutputRegistry(null, outputService, null);
+        final OutputRegistry outputRegistry = new OutputRegistry(null, outputService, null, null, null, FAULT_COUNT_THRESHOLD, FAULT_PENALTY_SECONDS);
 
         MessageOutput messageOutput = outputRegistry.getOutputForIdAndStream(outputId, stream);
 
@@ -104,7 +116,7 @@ public class OutputRegistryTest {
         when(messageOutputFactory.fromStreamOutput(eq(output), any(Stream.class), any(Configuration.class))).thenThrow(new MessageOutputConfigurationException());
         when(outputService.load(eq(outputId))).thenReturn(output);
 
-        final OutputRegistry outputRegistry = new OutputRegistry(null, outputService, messageOutputFactory);
+        final OutputRegistry outputRegistry = new OutputRegistry(null, outputService, messageOutputFactory, null, null, FAULT_COUNT_THRESHOLD, FAULT_PENALTY_SECONDS);
         assertEquals(outputRegistry.getRunningMessageOutputs().size(), 0);
 
         MessageOutput result = outputRegistry.getOutputForIdAndStream(outputId, stream);

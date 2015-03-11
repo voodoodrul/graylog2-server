@@ -1,6 +1,6 @@
 /**
  * The MIT License
- * Copyright (c) 2012 TORCH GmbH
+ * Copyright (c) 2012 Graylog, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,9 @@
 package org.graylog2.plugin.rest;
 
 /**
- * @author Dennis Oelkers <dennis@torch.sh>
+ * Marker interface for JAX-RS resources in plugins.
+ *
+ * @see org.graylog2.plugin.PluginModule#addRestResource(Class)
  */
-public class PluginRestResource {
+public interface PluginRestResource {
 }

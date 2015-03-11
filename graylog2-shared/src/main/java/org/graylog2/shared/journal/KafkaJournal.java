@@ -1,23 +1,25 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.shared.journal;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.joschi.jadconfig.util.Size;
@@ -65,15 +67,18 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.SyncFailedException;
 import java.nio.channels.ClosedByInterruptException;
+import java.nio.file.AccessDeniedException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -86,6 +91,7 @@ import static org.graylog2.plugin.Tools.bytesToHex;
 public class KafkaJournal extends AbstractIdleService implements Journal {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaJournal.class);
     public static final long DEFAULT_COMMITTED_OFFSET = Long.MIN_VALUE;
+    public static final int NOTIFY_ON_UTILIZATION_PERCENTAGE = 95;
 
     // this exists so we can use JodaTime's millis provider in tests.
     // kafka really only cares about the milliseconds() method in here
@@ -130,6 +136,7 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
     private ScheduledFuture<?> offsetFlusherFuture;
     private volatile boolean shuttingDown;
     private final AtomicReference<ThrottleState> throttleState = new AtomicReference<>();
+    private final AtomicInteger purgedSegmentsInLastRetention = new AtomicInteger();
 
     @Inject
     public KafkaJournal(@Named("message_journal_dir") File journalDirectory,
@@ -146,8 +153,11 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
         this.messagesWritten = metricRegistry.meter(name(this.getClass(), "messagesWritten"));
         this.messagesRead = metricRegistry.meter(name(this.getClass(), "messagesRead"));
 
-        this.writeTime = metricRegistry.register(name(this.getClass(), "writeTime"), new HdrTimer(1, TimeUnit.MINUTES, 1));
-        this.readTime = metricRegistry.register(name(this.getClass(), "readTime"), new HdrTimer(1, TimeUnit.MINUTES, 1));
+        registerUncommittedGauge(metricRegistry, name(this.getClass(), "uncommittedMessages"));
+
+        // the registerHdrTimer helper doesn't throw on existing metrics
+        this.writeTime = registerHdrTimer(metricRegistry, name(this.getClass(), "writeTime"));
+        this.readTime = registerHdrTimer(metricRegistry, name(this.getClass(), "readTime"));
 
         // these are the default values as per kafka 0.8.1.1
         final LogConfig defaultConfig =
@@ -197,6 +207,7 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
         if (!journalDirectory.exists() && !journalDirectory.mkdirs()) {
             LOG.error("Cannot create journal directory at {}, please check the permissions",
                     journalDirectory.getAbsolutePath());
+            Throwables.propagate(new AccessDeniedException(journalDirectory.getAbsolutePath(), null, "Could not create journal directory."));
         }
 
         // TODO add check for directory, etc
@@ -212,8 +223,10 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
                 }
             }
         } catch (IOException e) {
-            LOG.error("Cannot access offset file", e);
-            Throwables.propagate(e);
+            LOG.error("Cannot access offset file: {}", e.getMessage());
+            Throwables.propagate(new AccessDeniedException(committedReadOffsetFile.getAbsolutePath(),
+                                                           null,
+                                                           e.getMessage()));
         }
         try {
             kafkaScheduler = new KafkaScheduler(2, "kafka-journal-scheduler-", false); // TODO make thread count configurable
@@ -249,6 +262,40 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
             throw new RuntimeException(e);
         }
 
+    }
+
+    private Timer registerHdrTimer(MetricRegistry metricRegistry, final String metricName) {
+        Timer timer;
+        try {
+            timer = metricRegistry.register(metricName, new HdrTimer(1, TimeUnit.MINUTES, 1));
+        } catch (IllegalArgumentException e) {
+            final SortedMap<String, Timer> timers = metricRegistry.getTimers(new MetricFilter() {
+                @Override
+                public boolean matches(String name, Metric metric) {
+                    return metricName.equals(name);
+                }
+            });
+            timer = Iterables.getOnlyElement(timers.values());
+        }
+        return timer;
+    }
+
+    private void registerUncommittedGauge(MetricRegistry metricRegistry, String name) {
+        try {
+            metricRegistry.register(name,
+                                    new Gauge<Long>() {
+                                        @Override
+                                        public Long getValue() {
+                                            return Math.max(0, getLogEndOffset() - 1 - committedOffset.get());
+                                        }
+                                    });
+        } catch (IllegalArgumentException ignored) {
+            // already registered, we'll ignore that.
+        }
+    }
+
+    public int getPurgedSegmentsInLastRetention() {
+        return purgedSegmentsInLastRetention.get();
     }
 
     private void setupKafkaLogMetrics(final MetricRegistry metricRegistry) {
@@ -458,6 +505,7 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
                         i);
             }
         } while (!committedOffset.compareAndSet(prev, Math.max(offset, prev)));
+
     }
 
     /**
@@ -527,7 +575,7 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
 
     @Override
     protected void shutDown() throws Exception {
-        LOG.warn("Shutting down journal!");
+        LOG.debug("Shutting down journal!");
         shuttingDown = true;
 
         offsetFlusherFuture.cancel(false);
@@ -574,10 +622,10 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
     }
 
     /**
-     * Returns the highest journal offset that has been writting to persistent storage by Graylog2.
+     * Returns the highest journal offset that has been writting to persistent storage by Graylog.
      * <p>
      * Every message at an offset prior to this one can be considered as processed and does not need to be held in
-     * the journal any longer. By default Graylog2 will try to aggressively flush the journal to consume a smaller
+     * the journal any longer. By default Graylog will try to aggressively flush the journal to consume a smaller
      * amount of disk space.
      * </p>
      *
@@ -693,9 +741,10 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
         private int cleanupExpiredSegments(final Log kafkaLog) {
             // don't run if nothing will be done
             if (kafkaLog.size() == 0 && kafkaLog.numberOfSegments() < 1) {
+                KafkaJournal.this.purgedSegmentsInLastRetention.set(0);
                 return 0;
             }
-            return kafkaLog.deleteOldSegments(new AbstractFunction1<LogSegment, Object>() {
+            int deletedSegments = kafkaLog.deleteOldSegments(new AbstractFunction1<LogSegment, Object>() {
                 @Override
                 public Object apply(LogSegment segment) {
                     final long segmentAge = JODA_TIME.milliseconds() - segment.lastModified();
@@ -709,15 +758,24 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
                     return shouldDelete;
                 }
             });
+            KafkaJournal.this.purgedSegmentsInLastRetention.set(deletedSegments);
+            return deletedSegments;
         }
 
         private int cleanupSegmentsToMaintainSize(Log kafkaLog) {
             final long retentionSize = kafkaLog.config().retentionSize();
-            if (retentionSize < 0 || kafkaLog.size() < retentionSize) {
+            final long currentSize = kafkaLog.size();
+            final double utilizationPercentage = retentionSize > 0 ? (currentSize * 100) / retentionSize : 0.0;
+            if (utilizationPercentage > KafkaJournal.NOTIFY_ON_UTILIZATION_PERCENTAGE) {
+                LOG.warn("Journal utilization ({}%) has gone over {}%.", utilizationPercentage,
+                        KafkaJournal.NOTIFY_ON_UTILIZATION_PERCENTAGE);
+            }
+            if (retentionSize < 0 || currentSize < retentionSize) {
+                KafkaJournal.this.purgedSegmentsInLastRetention.set(0);
                 return 0;
             }
-            final long[] diff = {kafkaLog.size() - retentionSize};
-            return kafkaLog.deleteOldSegments(new AbstractFunction1<LogSegment, Object>() { // sigh scala
+            final long[] diff = {currentSize - retentionSize};
+            int deletedSegments = kafkaLog.deleteOldSegments(new AbstractFunction1<LogSegment, Object>() { // sigh scala
                 @Override
                 public Object apply(LogSegment segment) {
                     if (diff[0] - segment.size() >= 0) {
@@ -734,6 +792,8 @@ public class KafkaJournal extends AbstractIdleService implements Journal {
                     }
                 }
             });
+            KafkaJournal.this.purgedSegmentsInLastRetention.set(deletedSegments);
+            return deletedSegments;
         }
 
         private int cleanupSegmentsToRemoveCommitted(Log kafkaLog) {

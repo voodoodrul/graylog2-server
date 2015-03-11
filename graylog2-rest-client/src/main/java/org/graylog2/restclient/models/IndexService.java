@@ -1,37 +1,38 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.restclient.models;
 
 import com.google.common.collect.Lists;
-import javax.inject.Inject;
 import org.graylog2.restclient.lib.APIException;
 import org.graylog2.restclient.lib.ApiClient;
-import org.graylog2.restclient.models.api.responses.system.indices.*;
+import org.graylog2.restclient.models.api.responses.system.indices.ClosedIndicesResponse;
+import org.graylog2.restclient.models.api.responses.system.indices.DeflectorConfigResponse;
+import org.graylog2.restclient.models.api.responses.system.indices.DeflectorInformationResponse;
+import org.graylog2.restclient.models.api.responses.system.indices.IndexRangeSummary;
+import org.graylog2.restclient.models.api.responses.system.indices.IndexRangesResponse;
 import org.graylog2.restroutes.generated.routes;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.graylog2.restclient.lib.Configuration.apiTimeout;
 
-/**
- * @author Lennart Koopmann <lennart@torch.sh>
- */
 public class IndexService {
 
     private final ApiClient api;
@@ -58,17 +59,25 @@ public class IndexService {
 
     public DeflectorInformationResponse getDeflectorInfo() throws APIException, IOException {
         return api.path(routes.DeflectorResource().deflector(), DeflectorInformationResponse.class)
+                .timeout(apiTimeout("deflector_info", 20, TimeUnit.SECONDS))
                 .execute();
     }
 
     public DeflectorConfigResponse getDeflectorConfig() throws APIException, IOException {
         return api.path(routes.DeflectorResource().config(), DeflectorConfigResponse.class)
+                .timeout(apiTimeout("deflector_config", 60, TimeUnit.SECONDS))
                 .onlyMasterNode()
                 .execute();
     }
 
     public ClosedIndicesResponse getClosedIndices() throws APIException, IOException {
         return api.path(routes.IndicesResource().closed(), ClosedIndicesResponse.class)
+                .timeout(apiTimeout("closed_indices", 60, TimeUnit.SECONDS))
+                .execute();
+    }
+
+    public ClosedIndicesResponse getReopenedIndices() throws APIException, IOException {
+        return api.path(routes.IndicesResource().reopened(), ClosedIndicesResponse.class)
                 .execute();
     }
 

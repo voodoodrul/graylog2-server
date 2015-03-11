@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.radio.transports.amqp;
 
@@ -22,6 +22,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import org.graylog2.plugin.Message;
 import org.graylog2.plugin.RadioMessage;
 import org.graylog2.radio.Configuration;
+import org.joda.time.Duration;
 import org.msgpack.MessagePack;
 
 import javax.inject.Inject;
@@ -47,6 +48,7 @@ public class AMQPSender {
     private final String exchangeName;
     private final String routingKey;
     private final boolean amqpPersistentMessagesEnabled;
+    private final Duration connectTimeout;
 
     private Connection connection;
     private Channel channel;
@@ -62,13 +64,20 @@ public class AMQPSender {
                       String queueType,
                       String exchangeName,
                       String routingKey,
-                      boolean amqpPersistentMessagesEnabled) {
+                      boolean amqpPersistentMessagesEnabled, 
+                      Duration amqpConnectTimeout) {
         this.queueName = queueName;
         this.queueType = queueType;
         this.exchangeName = exchangeName;
         this.routingKey = routingKey;
         this.amqpPersistentMessagesEnabled = amqpPersistentMessagesEnabled;
+        connectTimeout = amqpConnectTimeout;
         pack = new MessagePack();
+
+        // Use a separate class loader for msgpack to avoid generation of duplicate class names.
+        // The JavaassistTemplateBuilder used by MessagePack uses a sequence number for class naming
+        // and is not thread-safe.
+        pack.setClassLoader(new ClassLoader(Thread.currentThread().getContextClassLoader()) {});
 
         this.hostname = hostname;
         this.port = port;
@@ -88,7 +97,8 @@ public class AMQPSender {
                 configuration.getAmqpQueueType(),
                 configuration.getAmqpExchangeName(),
                 configuration.getAmqpRoutingKey(),
-                configuration.isAmqpPersistentMessagesEnabled());
+                configuration.isAmqpPersistentMessagesEnabled(),
+                configuration.getAmqpConnectTimeout());
     }
 
     public void send(Message msg) throws IOException {
@@ -117,6 +127,8 @@ public class AMQPSender {
             factory.setUsername(username);
             factory.setPassword(password);
         }
+        
+        factory.setConnectionTimeout((int) connectTimeout.getMillis());
 
         connection = factory.newConnection();
         channel = connection.createChannel();

@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.restclient.lib;
 
@@ -32,7 +32,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.net.HttpHeaders;
 import com.google.common.net.MediaType;
-import javax.inject.Named;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.AsyncHttpClientConfig;
@@ -46,13 +45,13 @@ import org.graylog2.restclient.models.Node;
 import org.graylog2.restclient.models.Radio;
 import org.graylog2.restclient.models.User;
 import org.graylog2.restclient.models.UserService;
-import org.graylog2.restclient.models.api.requests.ApiRequest;
 import org.graylog2.restclient.models.api.responses.EmptyResponse;
 import org.graylog2.restroutes.PathMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
@@ -491,7 +490,7 @@ class ApiClientImpl implements ApiClient {
                 throw new RuntimeException("Malformed URL.", e);
             } catch (ExecutionException e) {
                 if (e.getCause() instanceof ConnectException) {
-                    LOG.warn("Graylog2 server unavailable. Connection refused.");
+                    LOG.warn("Graylog server unavailable. Connection refused.");
                     target.markFailure();
                     throw new Graylog2ServerUnavailableException(e);
                 }
@@ -642,7 +641,12 @@ class ApiClientImpl implements ApiClient {
 
             URI builtUrl;
             try {
-                String path = MessageFormat.format(pathTemplate, pathParams.toArray());
+                String path;
+                if (pathParams.isEmpty()) {
+                    path = pathTemplate;
+                } else {
+                    path = MessageFormat.format(pathTemplate, pathParams.toArray());
+                }
                 final UriBuilder uriBuilder = UriBuilder.fromUri(target.getTransportAddress());
                 uriBuilder.path(path);
                 for (String key : queryParams.keySet()) {

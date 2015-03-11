@@ -1,26 +1,24 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.indexer.indices;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.WriteConsistencyLevel;
@@ -68,6 +66,8 @@ import org.graylog2.plugin.indexer.retention.IndexManagement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -292,6 +292,10 @@ public class Indices implements IndexManagement {
             return false;
         }
 
+        return checkForReopened(metaData);
+    }
+
+    protected Boolean checkForReopened(IndexMetaData metaData) {
         return metaData.getSettings().getAsBoolean("index.graylog2_reopened", false);
     }
 
@@ -319,6 +323,32 @@ public class Indices implements IndexManagement {
             }
         }
         return closedIndices;
+    }
+    
+    public Set<String> getReopenedIndices() {
+        final Set<String> reopenedIndices = Sets.newHashSet();
+
+        ClusterStateRequest csr = new ClusterStateRequest()
+                .nodes(false)
+                .routingTable(false)
+                .blocks(false)
+                .metaData(true);
+
+        ClusterState state = c.admin().cluster().state(csr).actionGet().getState();
+
+        UnmodifiableIterator<IndexMetaData> it = state.getMetaData().getIndices().valuesIt();
+
+        while (it.hasNext()) {
+            IndexMetaData indexMeta = it.next();
+            // Only search in our indices.
+            if (!indexMeta.getIndex().startsWith(configuration.getIndexPrefix())) {
+                continue;
+            }
+            if (checkForReopened(indexMeta)) {
+                reopenedIndices.add(indexMeta.getIndex());
+            }
+        }
+        return reopenedIndices;
     }
 
     public IndexStatistics getIndexStats(String index) {

@@ -1,26 +1,28 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.restclient.models;
 
 import com.google.common.collect.Lists;
 import org.graylog2.restclient.lib.APIException;
 import org.graylog2.restclient.lib.ApiClient;
+import org.graylog2.restclient.models.api.requests.CreateExtractorRequest;
 import org.graylog2.restclient.models.api.requests.ExtractorOrderRequest;
 import org.graylog2.restclient.models.api.requests.GrokPatternUpdateRequest;
+import org.graylog2.restclient.models.api.responses.system.CreateExtractorResponse;
 import org.graylog2.restclient.models.api.responses.system.ExtractorSummaryResponse;
 import org.graylog2.restclient.models.api.responses.system.ExtractorsResponse;
 import org.graylog2.restclient.models.api.responses.system.GrokPatternResponse;
@@ -46,6 +48,23 @@ public class ExtractorService {
         this.extractorFactory = extractorFactory;
     }
 
+    public String create(Node node, Input input, CreateExtractorRequest request) throws IOException, APIException {
+        final CreateExtractorResponse response = api.path(routes.ExtractorsResource().create(input.getId()), CreateExtractorResponse.class)
+                .node(node)
+                .expect(Http.Status.CREATED)
+                .body(request)
+                .execute();
+        return response.extractorId;
+    }
+
+    public void update(String extractorId, Node node, Input input, CreateExtractorRequest request) throws IOException, APIException {
+        api.path(resource.update(input.getId(), extractorId))
+                .node(node)
+                .expect(Http.Status.OK)
+                .body(request)
+                .execute();
+    }
+
     public void delete(Node node, Input input, String extractorId) throws IOException, APIException {
         api.path(resource.terminate(input.getId(), extractorId))
                 .node(node)
@@ -53,6 +72,13 @@ public class ExtractorService {
                 .execute();
     }
 
+    public Extractor load(Node node, Input input, String extractorId) throws IOException, APIException {
+        final ExtractorSummaryResponse extractorSummaryResponse = api.path(resource.single(input.getId(), extractorId), ExtractorSummaryResponse.class)
+                .node(node)
+                .execute();
+
+        return extractorFactory.fromResponse(extractorSummaryResponse);
+    }
 
     public List<Extractor> all(Node node, Input input) throws IOException, APIException {
         List<Extractor> extractors = Lists.newArrayList();
@@ -104,8 +130,9 @@ public class ExtractorService {
         api.path(routes.GrokResource().removePattern(pattern.id)).execute();
     }
     
-    public void bulkLoadGrokPatterns(Collection<GrokPattern> patterns) throws APIException, IOException {
+    public void bulkLoadGrokPatterns(Collection<GrokPattern> patterns, boolean replace) throws APIException, IOException {
         api.path(routes.GrokResource().bulkUpdatePatterns())
+                .queryParam("replace", String.valueOf(replace))
                 .body(new GrokPatternUpdateRequest(patterns))
                 .execute();
         

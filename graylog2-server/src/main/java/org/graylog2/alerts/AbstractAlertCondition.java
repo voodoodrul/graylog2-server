@@ -1,29 +1,33 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.alerts;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import org.graylog2.plugin.MessageSummary;
 import org.graylog2.plugin.Tools;
 import org.graylog2.plugin.alarms.AlertCondition;
 import org.graylog2.plugin.database.EmbeddedPersistable;
 import org.graylog2.plugin.streams.Stream;
 import org.joda.time.DateTime;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -145,16 +149,24 @@ public abstract class AbstractAlertCondition implements EmbeddedPersistable, Ale
         private final String resultDescription;
         private final AlertCondition triggeredCondition;
         private final DateTime triggeredAt;
+        private final ArrayList<MessageSummary> summaries = Lists.newArrayList();
 
-        public CheckResult(boolean isTriggered, AlertCondition triggeredCondition, String resultDescription, DateTime triggeredAt) {
+        public CheckResult(boolean isTriggered,
+                           AlertCondition triggeredCondition,
+                           String resultDescription,
+                           DateTime triggeredAt,
+                           List<MessageSummary> summaries) {
             this.isTriggered = isTriggered;
             this.resultDescription = resultDescription;
             this.triggeredCondition = triggeredCondition;
             this.triggeredAt = triggeredAt;
+            if (summaries != null) {
+                this.summaries.addAll(summaries);
+            }
         }
 
         public CheckResult(boolean isTriggered) {
-            this(false, null, null, null);
+            this(false, null, null, null, null);
             if (isTriggered)
                 throw new RuntimeException("Boolean only constructor should only be called if CheckResult is not triggered!");
         }
@@ -173,6 +185,11 @@ public abstract class AbstractAlertCondition implements EmbeddedPersistable, Ale
 
         public DateTime getTriggeredAt() {
             return triggeredAt;
+        }
+
+        @Override
+        public List<MessageSummary> getMatchingMessages() {
+            return summaries;
         }
     }
 

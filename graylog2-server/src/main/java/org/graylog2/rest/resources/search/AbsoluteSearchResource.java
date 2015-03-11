@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.search;
 
@@ -25,7 +25,6 @@ import com.wordnik.swagger.annotations.ApiResponses;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.glassfish.jersey.server.ChunkedOutput;
-import org.graylog2.indexer.IndexHelper;
 import org.graylog2.indexer.results.ScrollResult;
 import org.graylog2.indexer.searches.Searches;
 import org.graylog2.indexer.searches.SearchesConfig;
@@ -39,6 +38,7 @@ import org.graylog2.rest.resources.search.responses.HistogramResult;
 import org.graylog2.rest.resources.search.responses.SearchResponse;
 import org.graylog2.rest.resources.search.responses.TermsResult;
 import org.graylog2.rest.resources.search.responses.TermsStatsResult;
+import org.graylog2.shared.rest.AdditionalMediaType;
 import org.graylog2.shared.security.RestPermissions;
 import org.hibernate.validator.constraints.NotEmpty;
 import org.slf4j.Logger;
@@ -101,9 +101,6 @@ public class AbsoluteSearchResource extends SearchResource {
 
         try {
             return buildSearchResponse(searches.search(searchesConfig), timeRange);
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            LOG.warn("Invalid timerange parameters provided. Returning HTTP 400.", e);
-            throw new BadRequestException("Invalid timerange parameters provided", e);
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
         }
@@ -114,7 +111,7 @@ public class AbsoluteSearchResource extends SearchResource {
     @ApiOperation(value = "Message search with absolute timerange.",
             notes = "Search for messages using an absolute timerange, specified as from/to " +
                     "with format yyyy-MM-ddTHH:mm:ss.SSSZ (e.g. 2014-01-23T15:34:49.000Z) or yyyy-MM-dd HH:mm:ss.")
-    @Produces("text/csv")
+    @Produces(AdditionalMediaType.TEXT_CSV)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid timerange parameters provided.")
     })
@@ -144,8 +141,6 @@ public class AbsoluteSearchResource extends SearchResource {
             return output;
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            throw new BadRequestException(e);
         }
     }
 
@@ -170,9 +165,6 @@ public class AbsoluteSearchResource extends SearchResource {
 
         try {
             return buildTermsResult(searches.terms(field, size, query, filter, buildAbsoluteTimeRange(from, to)));
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            LOG.warn("Invalid timerange parameters provided. Returning HTTP 400.", e);
-            throw new BadRequestException("Invalid timerange parameters provided", e);
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
         }
@@ -198,7 +190,7 @@ public class AbsoluteSearchResource extends SearchResource {
             @ApiParam(name = "size", value = "Maximum number of terms to return", required = false) @QueryParam("size") int size,
             @ApiParam(name = "from", value = "Timerange start. See search method description for date format", required = true) @QueryParam("from") String from,
             @ApiParam(name = "to", value = "Timerange end. See search method description for date format", required = true) @QueryParam("to") String to,
-            @ApiParam(name = "filter", value = "Filter", required = false) @QueryParam("filter") String filter) throws IndexHelper.InvalidRangeFormatException {
+            @ApiParam(name = "filter", value = "Filter", required = false) @QueryParam("filter") String filter) {
         checkSearchPermission(filter, RestPermissions.SEARCHES_ABSOLUTE);
 
         try {
@@ -211,9 +203,6 @@ public class AbsoluteSearchResource extends SearchResource {
                             filter,
                             buildAbsoluteTimeRange(from, to)
                     ));
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            LOG.warn("Invalid timerange parameters provided. Returning HTTP 400.", e);
-            throw new BadRequestException("Invalid timerange parameters provided", e);
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
         }
@@ -242,9 +231,6 @@ public class AbsoluteSearchResource extends SearchResource {
 
         try {
             return buildFieldStatsResult(fieldStats(field, query, filter, buildAbsoluteTimeRange(from, to)));
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            LOG.warn("Invalid timerange parameters provided. Returning HTTP 400.", e);
-            throw new BadRequestException("Invalid timerange parameters provided", e);
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
         }
@@ -281,9 +267,6 @@ public class AbsoluteSearchResource extends SearchResource {
                             buildAbsoluteTimeRange(from, to)
                     )
             );
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            LOG.warn("Invalid timerange parameters provided. Returning HTTP 400.", e);
-            throw new BadRequestException("Invalid timerange parameters provided", e);
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
         }
@@ -316,9 +299,6 @@ public class AbsoluteSearchResource extends SearchResource {
 
         try {
             return buildHistogramResult(fieldHistogram(field, query, interval, filter, buildAbsoluteTimeRange(from, to)));
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            LOG.warn("Invalid timerange parameters provided. Returning HTTP 400.", e);
-            throw new BadRequestException("Invalid timerange parameters provided", e);
         } catch (SearchPhaseExecutionException e) {
             throw createRequestExceptionForParseFailure(query, e);
         }

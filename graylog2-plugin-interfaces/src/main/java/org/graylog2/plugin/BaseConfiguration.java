@@ -1,6 +1,6 @@
 /**
  * The MIT License
- * Copyright (c) 2012 TORCH GmbH
+ * Copyright (c) 2012 Graylog, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -112,7 +112,7 @@ public abstract class BaseConfiguration {
     private int udpRecvBufferSizes = 1048576;
 
     @Parameter("message_journal_enabled")
-    private boolean messageJournalEnabled = false;
+    private boolean messageJournalEnabled = true;
 
     @Parameter("inputbuffer_processors")
     private int inputbufferProcessors = 2;
@@ -267,6 +267,10 @@ public abstract class BaseConfiguration {
 
     public boolean isMessageJournalEnabled() {
         return messageJournalEnabled;
+    }
+
+    public void setMessageJournalEnabled(boolean messageJournalEnabled) {
+        this.messageJournalEnabled = messageJournalEnabled;
     }
 
     public int getInputbufferProcessors() {

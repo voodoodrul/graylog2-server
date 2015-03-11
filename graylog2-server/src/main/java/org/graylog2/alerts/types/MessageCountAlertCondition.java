@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.alerts.types;
 
@@ -20,7 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import org.graylog2.alerts.AbstractAlertCondition;
-import org.graylog2.indexer.IndexHelper;
+import org.graylog2.indexer.InvalidRangeFormatException;
 import org.graylog2.indexer.results.CountResult;
 import org.graylog2.indexer.results.ResultMessage;
 import org.graylog2.indexer.results.SearchResult;
@@ -29,6 +29,7 @@ import org.graylog2.indexer.searches.Sorting;
 import org.graylog2.indexer.searches.timeranges.InvalidRangeParametersException;
 import org.graylog2.indexer.searches.timeranges.RelativeRange;
 import org.graylog2.plugin.Message;
+import org.graylog2.plugin.MessageSummary;
 import org.graylog2.plugin.Tools;
 import org.graylog2.plugin.streams.Stream;
 import org.joda.time.DateTime;
@@ -78,6 +79,7 @@ public class MessageCountAlertCondition extends AbstractAlertCondition {
     @Override
     protected CheckResult runCheck() {
         this.searchHits = Collections.emptyList();
+        final List<MessageSummary> summaries = Lists.newArrayList();
         try {
             String filter = "streams:" + stream.getId();
             CountResult result = searches.count("*", new RelativeRange(time * 60), filter);
@@ -101,14 +103,16 @@ public class MessageCountAlertCondition extends AbstractAlertCondition {
                     SearchResult backlogResult = searches.search("*", filter, new RelativeRange(time * 60), backlogSize, 0, new Sorting("timestamp", Sorting.Direction.DESC));
                     this.searchHits = Lists.newArrayList();
                     for (ResultMessage resultMessage : backlogResult.getResults()) {
-                        searchHits.add(new Message(resultMessage.getMessage()));
+                        final Message msg = new Message(resultMessage.getMessage());
+                        searchHits.add(msg);
+                        summaries.add(new MessageSummary(resultMessage.getIndex(), msg));
                     }
                 }
 
                 final String resultDescription = "Stream had " + count + " messages in the last " + time
                         + " minutes with trigger condition " + thresholdType.toString().toLowerCase()
                         + " than " + threshold + " messages. " + "(Current grace time: " + grace + " minutes)";
-                return new CheckResult(true, this, resultDescription, Tools.iso8601());
+                return new CheckResult(true, this, resultDescription, Tools.iso8601(), summaries);
             } else {
                 return new CheckResult(false);
             }
@@ -116,7 +120,7 @@ public class MessageCountAlertCondition extends AbstractAlertCondition {
             // cannot happen lol
             LOG.error("Invalid timerange.", e);
             return null;
-        } catch (IndexHelper.InvalidRangeFormatException e) {
+        } catch (InvalidRangeFormatException e) {
             // lol same here
             LOG.error("Invalid timerange format.", e);
             return null;

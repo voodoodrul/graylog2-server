@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.system.indexer;
 
@@ -83,7 +83,7 @@ public class IndicesResource extends RestResource {
         checkPermission(RestPermissions.INDICES_READ, index);
 
         if (!deflector.isGraylog2Index(index)) {
-            final String msg = "Index [" + index + "] doesn't look like an index managed by Graylog2.";
+            final String msg = "Index [" + index + "] doesn't look like an index managed by Graylog.";
             LOG.info(msg);
             throw new NotFoundException(msg);
         }
@@ -125,6 +125,28 @@ public class IndicesResource extends RestResource {
 
         return ClosedIndices.create(closedIndices, closedIndices.size());
     }
+    
+    @GET
+    @Timed
+    @Path("/reopened")
+    @ApiOperation(value = "Get a list of reopened indices, which will not be cleaned by retention cleaning")
+    @Produces(MediaType.APPLICATION_JSON)
+    public ClosedIndices reopened() {
+        final Set<String> reopenedIndices;
+        try {
+            reopenedIndices = Sets.filter(indices.getReopenedIndices(), new Predicate<String>() {
+                @Override
+                public boolean apply(String indexName) {
+                    return isPermitted(RestPermissions.INDICES_READ, indexName);
+                }
+            });
+        } catch (Exception e) {
+            LOG.error("Could not get reopened indices.", e);
+            throw new InternalServerErrorException(e);
+        }
+
+        return ClosedIndices.create(reopenedIndices, reopenedIndices.size()); 
+    }
 
     @POST
     @Timed
@@ -135,7 +157,7 @@ public class IndicesResource extends RestResource {
         checkPermission(RestPermissions.INDICES_CHANGESTATE, index);
 
         if (!deflector.isGraylog2Index(index)) {
-            LOG.info("Index [{}] doesn't look like an index managed by Graylog2.", index);
+            LOG.info("Index [{}] doesn't look like an index managed by Graylog.", index);
             throw new NotFoundException();
         }
 
@@ -164,7 +186,7 @@ public class IndicesResource extends RestResource {
         checkPermission(RestPermissions.INDICES_CHANGESTATE, index);
 
         if (!deflector.isGraylog2Index(index)) {
-            LOG.info("Index [{}] doesn't look like an index managed by Graylog2.", index);
+            LOG.info("Index [{}] doesn't look like an index managed by Graylog.", index);
             throw new NotFoundException();
         }
 
@@ -198,7 +220,7 @@ public class IndicesResource extends RestResource {
         checkPermission(RestPermissions.INDICES_DELETE, index);
 
         if (!deflector.isGraylog2Index(index)) {
-            final String msg = "Index [" + index + "] doesn't look like an index managed by Graylog2.";
+            final String msg = "Index [" + index + "] doesn't look like an index managed by Graylog.";
             LOG.info(msg);
             throw new NotFoundException(msg);
         }

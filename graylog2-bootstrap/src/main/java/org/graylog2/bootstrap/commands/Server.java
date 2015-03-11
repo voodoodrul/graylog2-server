@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.bootstrap.commands;
 
@@ -59,8 +59,9 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
-@Command(name = "server", description = "Start the Graylog2 server")
+@Command(name = "server", description = "Start the Graylog server")
 public class Server extends ServerBootstrap implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(Server.class);
 
@@ -75,10 +76,10 @@ public class Server extends ServerBootstrap implements Runnable {
         super("server", configuration);
     }
 
-    @Option(name = {"-t", "--configtest"}, description = "Validate Graylog2 configuration and exit")
+    @Option(name = {"-t", "--configtest"}, description = "Validate Graylog configuration and exit")
     private boolean configTest = false;
 
-    @Option(name = {"-l", "--local"}, description = "Run Graylog2 in local mode. Only interesting for Graylog2 developers.")
+    @Option(name = {"-l", "--local"}, description = "Run Graylog in local mode. Only interesting for Graylog developers.")
     private boolean local = false;
 
     @Option(name = {"-s", "--statistics"}, description = "Print utilization statistics to STDOUT")
@@ -86,15 +87,6 @@ public class Server extends ServerBootstrap implements Runnable {
 
     @Option(name = {"-r", "--no-retention"}, description = "Do not automatically remove messages from index that are older than the retention time")
     private boolean noRetention = false;
-
-    @Option(name = {"-x", "--install-plugin"}, description = "Install plugin with provided short name from graylog2.org")
-    private String pluginShortname;
-
-    @Option(name = {"-v", "--plugin-version"}, description = "Install plugin with this version")
-    private String pluginVersion = ServerVersion.VERSION.toString();
-
-    @Option(name = {"-m", "--force-plugin"}, description = "Force plugin installation even if this version of graylog2-server is not officially supported.")
-    private boolean forcePlugin = false;
 
     public boolean isConfigTest() {
         return configTest;
@@ -110,22 +102,6 @@ public class Server extends ServerBootstrap implements Runnable {
 
     public boolean performRetention() {
         return !noRetention;
-    }
-
-    public boolean isInstallPlugin() {
-        return pluginShortname != null && !pluginShortname.isEmpty();
-    }
-
-    public String getPluginShortname() {
-        return pluginShortname;
-    }
-
-    public String getPluginVersion() {
-        return pluginVersion;
-    }
-
-    public boolean isForcePlugin() {
-        return forcePlugin;
     }
 
     @Override
@@ -159,10 +135,10 @@ public class Server extends ServerBootstrap implements Runnable {
         final ServerStatus serverStatus = injector.getInstance(ServerStatus.class);
         final ActivityWriter activityWriter = injector.getInstance(ActivityWriter.class);
         nodeService.registerServer(serverStatus.getNodeId().toString(), configuration.isMaster(), configuration.getRestTransportUri());
-
+        serverStatus.setLocalMode(isLocal());
         if (configuration.isMaster() && !nodeService.isOnlyMaster(serverStatus.getNodeId())) {
             LOG.warn("Detected another master in the cluster. Retrying in {} seconds to make sure it is not "
-                    + "an old stale instance.", configuration.getStaleMasterTimeout());
+                    + "an old stale instance.", TimeUnit.MILLISECONDS.toSeconds(configuration.getStaleMasterTimeout()));
             try {
                 Thread.sleep(configuration.getStaleMasterTimeout());
             } catch (InterruptedException e) { /* nope */ }
@@ -231,7 +207,9 @@ public class Server extends ServerBootstrap implements Runnable {
         super.annotateInjectorExceptions(messages);
         for (Message message : messages) {
             if (message.getCause() instanceof MongoException) {
-                LOG.error(UI.wallString("Unable to connect to MongoDB. Is it running and the configuration correct?"));
+                MongoException e = (MongoException) message.getCause();
+                LOG.error(UI.wallString("Unable to connect to MongoDB. Is it running and the configuration correct?\n" +
+                        "Details: " + e.getMessage()));
                 System.exit(-1);
             }
         }

@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.inputs.codecs;
 
@@ -128,7 +128,17 @@ public class SyslogCodec extends AbstractCodec {
 
         }
 
-        final Message m = new Message(e.getMessage(), parseHost(e, remoteAddress), parseDate(e, receivedTimestamp));
+        // If the message is a structured one, we do not want the message ID and the structured data in the
+        // message string. See: https://github.com/Graylog2/graylog2-server/issues/845#issuecomment-69499719
+        final String syslogMessage;
+        if (e instanceof StructuredSyslogServerEvent) {
+            final String structMessage = ((StructuredSyslogServerEvent) e).getStructuredMessage().getMessage();
+            syslogMessage = isNullOrEmpty(structMessage) ? e.getMessage() : structMessage;
+        } else {
+            syslogMessage = e.getMessage();
+        }
+
+        final Message m = new Message(syslogMessage, parseHost(e, remoteAddress), parseDate(e, receivedTimestamp));
         m.addField("facility", Tools.syslogFacilityToReadable(e.getFacility()));
         m.addField("level", e.getLevel());
 

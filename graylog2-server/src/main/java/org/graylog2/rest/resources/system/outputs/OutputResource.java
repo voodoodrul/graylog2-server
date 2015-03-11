@@ -1,24 +1,23 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.system.outputs;
 
 import com.codahale.metrics.annotation.Timed;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiParam;
@@ -27,19 +26,18 @@ import com.wordnik.swagger.annotations.ApiResponses;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.graylog2.database.NotFoundException;
-import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.outputs.MessageOutputFactory;
-import org.graylog2.plugin.configuration.ConfigurationRequest;
-import org.graylog2.plugin.configuration.fields.TextField;
-import org.graylog2.plugin.outputs.MessageOutput;
-import org.graylog2.plugin.outputs.MessageOutputConfigurationException;
+import org.graylog2.plugin.database.ValidationException;
 import org.graylog2.plugin.streams.Output;
-import org.graylog2.shared.rest.resources.RestResource;
+import org.graylog2.rest.models.system.outputs.responses.OutputSummary;
 import org.graylog2.rest.resources.streams.outputs.AvailableOutputSummary;
+import org.graylog2.rest.resources.streams.outputs.OutputListResponse;
+import org.graylog2.shared.rest.resources.RestResource;
 import org.graylog2.shared.security.RestPermissions;
 import org.graylog2.streams.OutputService;
 import org.graylog2.streams.outputs.CreateOutputRequest;
 import org.graylog2.utilities.ConfigurationMapConverter;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +51,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -79,13 +78,22 @@ public class OutputResource extends RestResource {
     @ApiOperation(value = "Get a list of all outputs")
     @RequiresPermissions(RestPermissions.STREAM_OUTPUTS_CREATE)
     @Produces(MediaType.APPLICATION_JSON)
-    public Map<String, Object> get() {
+    public OutputListResponse get() {
         checkPermission(RestPermissions.OUTPUTS_READ);
-        final Set<Output> outputs = outputService.loadAll();
+        final Set<OutputSummary> outputs = new HashSet<>();
 
-        return ImmutableMap.of(
-                "total", outputs.size(),
-                "outputs", filterPasswordFields(outputs));
+        for (Output output : outputService.loadAll())
+            outputs.add(OutputSummary.create(
+                    output.getId(),
+                    output.getTitle(),
+                    output.getType(),
+                    output.getCreatorUserId(),
+                    new DateTime(output.getCreatedAt()),
+                    new HashMap<>(output.getConfiguration()),
+                    output.getContentPack()
+            ));
+
+        return OutputListResponse.create(outputs);
     }
 
     @GET
@@ -97,14 +105,10 @@ public class OutputResource extends RestResource {
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "No such output on this node.")
     })
-    public Map<String, Object> get(@ApiParam(name = "outputId", value = "The id of the output we want.", required = true) @PathParam("outputId") String outputId) throws NotFoundException {
+    public OutputSummary get(@ApiParam(name = "outputId", value = "The id of the output we want.", required = true) @PathParam("outputId") String outputId) throws NotFoundException {
         checkPermission(RestPermissions.OUTPUTS_READ, outputId);
-        try {
-            return filterPasswordFields(outputService.load(outputId));
-        } catch (MessageOutputConfigurationException e) {
-            LOG.error("Unable to filter configuration fields of output {}: ", outputId, e);
-            return null;
-        }
+        final Output output = outputService.load(outputId);
+        return OutputSummary.create(output.getId(), output.getTitle(), output.getType(), output.getCreatorUserId(), new DateTime(output.getCreatedAt()), output.getConfiguration(), output.getContentPack());
     }
 
     @POST
@@ -113,7 +117,7 @@ public class OutputResource extends RestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid output specification in input.")
+            @ApiResponse(code = 400, message = "Invalid output specification in input.", response = OutputSummary.class)
     })
     public Response create(@ApiParam(name = "JSON body", required = true) CreateOutputRequest csor) throws ValidationException {
         checkPermission(RestPermissions.OUTPUTS_CREATE);
@@ -132,16 +136,21 @@ public class OutputResource extends RestResource {
         );
 
         final Output output = outputService.create(createOutputRequest, getCurrentUser().getName());
-        final URI outputUri = UriBuilder.fromResource(OutputResource.class)
+        final URI outputUri = getUriBuilderToSelf().path(OutputResource.class)
                 .path("{outputId}")
                 .build(output.getId());
 
-        try {
-            return Response.created(outputUri).entity(filterPasswordFields(output)).build();
-        } catch (MessageOutputConfigurationException e) {
-            LOG.error("Unable to filter configuration fields for output {}: ", output.getId(), e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
-        }
+        return Response.created(outputUri).entity(
+                        OutputSummary.create(
+                                output.getId(),
+                                output.getTitle(),
+                                output.getType(),
+                                output.getCreatorUserId(),
+                                new DateTime(output.getCreatedAt()),
+                                new HashMap<>(output.getConfiguration()),
+                                output.getContentPack()
+                        )
+        ).build();
     }
 
     @DELETE
@@ -170,37 +179,4 @@ public class OutputResource extends RestResource {
         return ImmutableMap.of("types", messageOutputFactory.getAvailableOutputs());
     }
 
-    private Set<Map<String, Object>> filterPasswordFields(final Set<Output> outputs) {
-        final Set<Map<String, Object>> data = Sets.newHashSet();
-
-        for (Output output : outputs) {
-            try {
-                data.add(filterPasswordFields(output));
-            } catch (MessageOutputConfigurationException e) {
-                LOG.error("Unable to filter configuration fields for output {}: ", output.getId(), e);
-            }
-        }
-
-        return data;
-    }
-
-    // This is so ugly!
-    // TODO: Remove this once we implemented proper types for input/ouput configuration.
-    private Map<String, Object> filterPasswordFields(final Output output) throws MessageOutputConfigurationException {
-        final Map<String, Object> data = output.asMap();
-        final MessageOutput.Factory factory = messageOutputFactory.get(output.getType());
-        final ConfigurationRequest requestedConfiguration = factory.getConfig().getRequestedConfiguration();
-
-        if (data.containsKey("configuration")) {
-            final Map<String, Object> c = (Map<String, Object>) data.get("configuration");
-
-            for (Map.Entry<String, Object> entry : c.entrySet()) {
-                if (requestedConfiguration.getField(entry.getKey()).getAttributes().contains(TextField.Attribute.IS_PASSWORD.toString().toLowerCase())) {
-                    c.put(entry.getKey(), "********");
-                }
-            }
-        }
-
-        return data;
-    }
 }

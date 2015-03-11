@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.radio;
 
@@ -21,6 +21,7 @@ import com.github.joschi.jadconfig.validators.InetPortValidator;
 import com.github.joschi.jadconfig.validators.PositiveIntegerValidator;
 import org.graylog2.plugin.BaseConfiguration;
 import org.graylog2.plugin.Tools;
+import org.joda.time.Duration;
 
 import java.net.URI;
 
@@ -36,7 +37,7 @@ public class Configuration extends BaseConfiguration {
     }
 
     @Parameter(value = "node_id_file")
-    private String nodeIdFile = "/etc/graylog2-radio-node-id";
+    private String nodeIdFile = "/etc/graylog/radio/node-id";
 
     @Parameter(value = "transport_type", required = true)
     private String transportType = "amqp";
@@ -94,6 +95,9 @@ public class Configuration extends BaseConfiguration {
 
     @Parameter(value = "amqp_persistent_messages_enabled")
     private boolean amqpPersistentMessagesEnabled = false;
+    
+    @Parameter(value = "amqp_broker_connect_timeout")
+    private Duration amqpConnectTimeout = Duration.standardSeconds(5);
 
     @Parameter(value = "ring_size", required = true, validator = PositiveIntegerValidator.class)
     private int ringSize = 65536;
@@ -188,5 +192,9 @@ public class Configuration extends BaseConfiguration {
 
     public int getRadioTransportMaxErrors() {
         return radioTransportMaxErrors;
+    }
+
+    public Duration getAmqpConnectTimeout() {
+        return amqpConnectTimeout;
     }
 }

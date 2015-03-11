@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.system.stats.mongo;
 
@@ -75,12 +75,12 @@ public class MongoProbe {
             final BasicDBObject extraMap = (BasicDBObject) hostInfoResult.get("extra");
             final HostInfo.Extra extra = HostInfo.Extra.create(
                     extraMap.getString("versionString"),
-                    extraMap.getString("libcVersion", null),
-                    extraMap.getString("kernelVersion", null),
+                    extraMap.getString("libcVersion"),
+                    extraMap.getString("kernelVersion"),
                     extraMap.getString("cpuFrequencyMHz"),
                     extraMap.getString("cpuFeatures"),
-                    extraMap.getString("scheduler", null),
-                    extraMap.getLong("pageSize"),
+                    extraMap.getString("scheduler"),
+                    extraMap.getLong("pageSize", -1l),
                     extraMap.getLong("numPages", -1l),
                     extraMap.getLong("maxOpenFiles", -1l)
             );
@@ -129,17 +129,26 @@ public class MongoProbe {
         final CommandResult dbStatsResult = db.command("dbStats");
         if (dbStatsResult.ok()) {
             final BasicDBObject extentFreeListMap = (BasicDBObject) dbStatsResult.get("extentFreeList");
-            final DatabaseStats.ExtentFreeList extentFreeList = DatabaseStats.ExtentFreeList.create(
-                    extentFreeListMap.getInt("num"),
-                    extentFreeListMap.getInt("totalSize")
-            );
+            final DatabaseStats.ExtentFreeList extentFreeList;
+            if (extentFreeListMap == null) {
+                extentFreeList = null;
+            } else {
+                extentFreeList = DatabaseStats.ExtentFreeList.create(
+                        extentFreeListMap.getInt("num"),
+                        extentFreeListMap.getInt("totalSize")
+                );
+            }
 
             final BasicDBObject dataFileVersionMap = (BasicDBObject) dbStatsResult.get("dataFileVersion");
-            final DatabaseStats.DataFileVersion dataFileVersion = DatabaseStats.DataFileVersion.create(
-                    dataFileVersionMap.getInt("major"),
-                    dataFileVersionMap.getInt("minor")
-            );
-
+            final DatabaseStats.DataFileVersion dataFileVersion;
+            if (dataFileVersionMap == null) {
+                dataFileVersion = null;
+            } else {
+                dataFileVersion = DatabaseStats.DataFileVersion.create(
+                        dataFileVersionMap.getInt("major"),
+                        dataFileVersionMap.getInt("minor")
+                );
+            }
 
             dbStats = DatabaseStats.create(
                     dbStatsResult.getString("db"),
@@ -151,8 +160,8 @@ public class MongoProbe {
                     dbStatsResult.getLong("numExtents"),
                     dbStatsResult.getLong("indexes"),
                     dbStatsResult.getLong("indexSize"),
-                    dbStatsResult.getLong("fileSize"),
-                    dbStatsResult.getLong("nsSizeMB"),
+                    dbStatsResult.containsField("fileSize") ? dbStatsResult.getLong("fileSize") : null,
+                    dbStatsResult.containsField("nsSizeMB") ? dbStatsResult.getLong("nsSizeMB") : null,
                     extentFreeList,
                     dataFileVersion
             );
@@ -167,7 +176,7 @@ public class MongoProbe {
             final ServerStatus.Connections connections = ServerStatus.Connections.create(
                     connectionsMap.getInt("current"),
                     connectionsMap.getInt("available"),
-                    connectionsMap.getLong("totalCreated")
+                    connectionsMap.containsField("totalCreated") ? connectionsMap.getLong("totalCreated") : null
             );
 
             final BasicDBObject networkMap = (BasicDBObject) serverStatusResult.get("network");
@@ -187,6 +196,14 @@ public class MongoProbe {
                     memoryMap.getInt("mappedWithJournal")
             );
 
+            final BasicDBObject storageEngineMap = (BasicDBObject) serverStatusResult.get("storageEngine");
+            final ServerStatus.StorageEngine storageEngine;
+            if (storageEngineMap == null) {
+                storageEngine = ServerStatus.StorageEngine.DEFAULT;
+            } else {
+                storageEngine = ServerStatus.StorageEngine.create(storageEngineMap.getString("name"));
+            }
+
             serverStatus = ServerStatus.create(
                     serverStatusResult.getString("host"),
                     serverStatusResult.getString("version"),
@@ -198,7 +215,8 @@ public class MongoProbe {
                     new DateTime(serverStatusResult.getDate("localTime")),
                     connections,
                     network,
-                    memory);
+                    memory,
+                    storageEngine);
         } else {
             serverStatus = null;
         }

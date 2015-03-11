@@ -1,25 +1,25 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rules;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import javax.inject.Inject;
+import org.apache.commons.io.FilenameUtils;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
 import org.graylog2.plugin.Message;
 import org.graylog2.plugin.RulesEngine;
@@ -37,11 +37,11 @@ import org.kie.internal.io.ResourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -207,8 +207,8 @@ public class DroolsEngine implements RulesEngine {
             }
         }
         for (URL builtinRuleUrl : builtinRuleUrls) {
-            final Path rulesPath = new File(builtinRuleUrl.getPath()).toPath();
-            final String path = "src/main/resources/" + rulesPath.getFileName();
+            final String rulesFileName = FilenameUtils.getName(builtinRuleUrl.getPath());
+            final String path = "src/main/resources/" + rulesFileName;
             final Resource resource = ResourceFactory
                     .newUrlResource(builtinRuleUrl)
                     .setSourcePath(path)

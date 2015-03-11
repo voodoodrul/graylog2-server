@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.dashboards;
 
@@ -66,7 +66,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -122,7 +121,7 @@ public class DashboardsResource extends RestResource {
         dashboardRegistry.add(dashboard);
 
         final Map<String, String> result = ImmutableMap.of("dashboard_id", id);
-        final URI dashboardUri = UriBuilder.fromResource(DashboardsResource.class)
+        final URI dashboardUri = getUriBuilderToSelf().path(DashboardsResource.class)
                 .path("{dashboardId}")
                 .build(id);
 
@@ -286,7 +285,7 @@ public class DashboardsResource extends RestResource {
         }
 
         final Map<String, String> result = ImmutableMap.of("widget_id", widget.getId());
-        final URI widgetUri = UriBuilder.fromResource(DashboardsResource.class)
+        final URI widgetUri = getUriBuilderToSelf().path(DashboardsResource.class)
                 .path("{dashboardId}/widgets/{widgetId}")
                 .build(dashboardId, widget.getId());
 

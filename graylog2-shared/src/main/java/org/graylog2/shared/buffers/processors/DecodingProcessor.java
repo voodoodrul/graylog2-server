@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.graylog2.shared.buffers.processors;
@@ -31,19 +31,18 @@ import org.graylog2.plugin.ServerStatus;
 import org.graylog2.plugin.buffers.MessageEvent;
 import org.graylog2.plugin.inputs.codecs.Codec;
 import org.graylog2.plugin.journal.RawMessage;
-import org.graylog2.shared.inputs.InputRegistry;
-import org.graylog2.shared.inputs.PersistedInputs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
 public class DecodingProcessor implements EventHandler<MessageEvent> {
-    private static final Logger log = LoggerFactory.getLogger(DecodingProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DecodingProcessor.class);
 
     private final Timer decodeTime;
 
@@ -58,10 +57,8 @@ public class DecodingProcessor implements EventHandler<MessageEvent> {
 
     @AssistedInject
     public DecodingProcessor(Map<String, Codec.Factory<? extends Codec>> codecFactory,
-                             final InputRegistry inputRegistry,
                              final ServerStatus serverStatus,
                              final MetricRegistry metricRegistry,
-                             final PersistedInputs persistedInputs,
                              @Assisted("decodeTime") Timer decodeTime,
                              @Assisted("parseTime") Timer parseTime) {
         this.codecFactory = codecFactory;
@@ -91,11 +88,17 @@ public class DecodingProcessor implements EventHandler<MessageEvent> {
 
     private Message processMessage(RawMessage raw) throws ExecutionException {
         if (raw == null) {
-            log.warn("Ignoring null message");
+            LOG.warn("Ignoring null message");
             return null;
         }
 
-        final Codec codec = codecFactory.get(raw.getCodecName()).create(raw.getCodecConfig());
+        final Codec.Factory<? extends Codec> factory = codecFactory.get(raw.getCodecName());
+        if(factory == null) {
+            LOG.warn("Couldn't find factory for codec {}, skipping message.", raw.getCodecName());
+            return null;
+        }
+
+        final Codec codec = factory.create(raw.getCodecConfig());
 
         // for backwards compatibility: the last source node should contain the input we use.
         // this means that extractors etc defined on the prior inputs are silently ignored.
@@ -111,7 +114,6 @@ public class DecodingProcessor implements EventHandler<MessageEvent> {
 
         final Message message;
 
-        // TODO Create parse times per codec as well. (add some more metrics too)
         final Timer.Context decodeTimeCtx = parseTime.time();
         final long decodeTime;
         try {
@@ -132,13 +134,14 @@ public class DecodingProcessor implements EventHandler<MessageEvent> {
         }
         if (!message.isComplete()) {
             metricRegistry.meter(name(baseMetricName, "incomplete")).mark();
-            if (log.isDebugEnabled()) {
-                log.debug("Dropping incomplete message. Parsed fields: [{}]", message.getFields());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Dropping incomplete message. Parsed fields: [{}]", message.getFields());
             }
             return null;
         }
 
         message.recordTiming(serverStatus, "parse", decodeTime);
+        metricRegistry.timer(name(baseMetricName, "parseTime")).update(decodeTime, TimeUnit.NANOSECONDS);
 
         for (final RawMessage.SourceNode node : raw.getSourceNodes()) {
             switch (node.type) {
@@ -165,7 +168,7 @@ public class DecodingProcessor implements EventHandler<MessageEvent> {
             try {
                 message.setSourceInputId(inputIdOnCurrentNode);
             } catch (RuntimeException e) {
-                log.warn("Unable to find input with id " + inputIdOnCurrentNode + ", not setting input id in this message.", e);
+                LOG.warn("Unable to find input with id " + inputIdOnCurrentNode + ", not setting input id in this message.", e);
             }
         }
 
@@ -184,7 +187,7 @@ public class DecodingProcessor implements EventHandler<MessageEvent> {
             }
         }
 
-        if (codec.getConfiguration().stringIsSet(Codec.Config.CK_OVERRIDE_SOURCE)) {
+        if (codec.getConfiguration() != null && codec.getConfiguration().stringIsSet(Codec.Config.CK_OVERRIDE_SOURCE)) {
             message.setSource(codec.getConfiguration().getString(Codec.Config.CK_OVERRIDE_SOURCE));
         }
 

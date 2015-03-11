@@ -1,24 +1,25 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.filters;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
+import org.graylog2.database.NotFoundException;
 import org.graylog2.inputs.Input;
 import org.graylog2.inputs.InputService;
 import org.graylog2.plugin.Message;
@@ -35,13 +36,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Lennart Koopmann <lennart@torch.sh>
- */
 public class ExtractorFilter implements MessageFilter {
-
     private static final Logger LOG = LoggerFactory.getLogger(ExtractorFilter.class);
-
     private static final String NAME = "Extractor";
 
     private Cache<String, List<Extractor>> cache = CacheBuilder.newBuilder()
@@ -66,8 +62,7 @@ public class ExtractorFilter implements MessageFilter {
                 extractor.runExtractor(msg);
             } catch (Exception e) {
                 extractor.incrementExceptions();
-                LOG.error("Could not apply extractor.", e);
-                continue;
+                LOG.error("Could not apply extractor " + extractor.getTitle() + " (id=" + extractor.getId() + ")", e);
             }
         }
 
@@ -81,17 +76,22 @@ public class ExtractorFilter implements MessageFilter {
                 public List<Extractor> call() throws Exception {
                     LOG.debug("Re-loading extractors for input <{}> into cache.", inputId);
 
-                    Input input = inputService.find(inputId);
+                    try {
+                        Input input = inputService.find(inputId);
 
-                    List<Extractor> sorted = Lists.newArrayList(inputService.getExtractors(input));
+                        List<Extractor> sorted = Lists.newArrayList(inputService.getExtractors(input));
 
-                    Collections.sort(sorted, new Comparator<Extractor>() {
-                        public int compare(Extractor e1, Extractor e2) {
-                            return e1.getOrder().intValue() - e2.getOrder().intValue();
-                        }
-                    });
+                        Collections.sort(sorted, new Comparator<Extractor>() {
+                            public int compare(Extractor e1, Extractor e2) {
+                                return e1.getOrder().intValue() - e2.getOrder().intValue();
+                            }
+                        });
 
-                    return sorted;
+                        return sorted;
+                    } catch (NotFoundException e) {
+                        LOG.warn("Unable to load input: {}", e.getMessage());
+                        return Collections.emptyList();
+                    }
                 }
             });
         } catch (ExecutionException e) {

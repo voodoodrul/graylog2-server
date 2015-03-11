@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.indexer.indices.jobs;
 
@@ -26,9 +26,6 @@ import org.graylog2.system.jobs.SystemJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author Lennart Koopmann <lennart@torch.sh>
- */
 public class OptimizeIndexJob extends SystemJob {
     public interface Factory {
         OptimizeIndexJob create(String index);
@@ -43,11 +40,9 @@ public class OptimizeIndexJob extends SystemJob {
     private final Indices indices;
 
     @AssistedInject
-    public OptimizeIndexJob(ServerStatus serverStatus,
-                            Indices indices,
+    public OptimizeIndexJob(Indices indices,
                             ActivityWriter activityWriter,
                             @Assisted String index) {
-        super(serverStatus);
         this.indices = indices;
         this.activityWriter = activityWriter;
         this.index = index;
@@ -88,7 +83,7 @@ public class OptimizeIndexJob extends SystemJob {
 
     @Override
     public String getDescription() {
-        return "Optimises an index for read performance.";
+        return "Optimizes an index for read performance.";
     }
 
     @Override
@@ -96,4 +91,8 @@ public class OptimizeIndexJob extends SystemJob {
         return this.getClass().getCanonicalName();
     }
 
+    @Override
+    public String getInfo() {
+        return "Optimizing index " + index + ".";
+    }
 }

@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.streams.alerts;
 
@@ -52,7 +52,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -99,9 +98,9 @@ public class StreamAlertConditionResource extends RestResource {
         streamService.addAlertCondition(stream, alertCondition);
 
         final Map<String, String> result = ImmutableMap.of("alert_condition_id", alertCondition.getId());
-        final URI alertConditionUri = UriBuilder.fromResource(StreamAlertConditionResource.class)
+        final URI alertConditionUri = getUriBuilderToSelf().path(StreamAlertConditionResource.class)
                 .path("{conditionId}")
-                .build(alertCondition.getId());
+                .build(stream.getId(), alertCondition.getId());
 
         return Response.created(alertConditionUri).entity(result).build();
     }

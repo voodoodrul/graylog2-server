@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.indexer;
 
@@ -26,12 +26,15 @@ import org.graylog2.indexer.ranges.IndexRangeService;
 import org.graylog2.indexer.searches.timeranges.RelativeRange;
 import org.graylog2.indexer.searches.timeranges.TimeRange;
 import org.graylog2.plugin.Tools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
 public class IndexHelper {
+    private static final Logger LOG = LoggerFactory.getLogger(IndexHelper.class);
 
     public static Set<String> getOldestIndices(Set<String> indexNames, int count) {
         Set<String> r = Sets.newHashSet();
@@ -120,13 +123,11 @@ public class IndexHelper {
                 final IndexRange deflectorIndexRange = indexRangeService.get(deflector.getCurrentActualTargetIndex());
                 indices.add(deflectorIndexRange);
             } catch (NotFoundException e) {
-                e.printStackTrace();
+                LOG.warn("Couldn't find latest deflector target index", e);
             }
         }
 
         return indices;
     }
 
-    public static class InvalidRangeFormatException extends Exception {
-    }
 }

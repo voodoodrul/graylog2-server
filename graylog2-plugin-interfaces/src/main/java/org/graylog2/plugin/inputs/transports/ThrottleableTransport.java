@@ -1,6 +1,6 @@
 /**
  * The MIT License
- * Copyright (c) 2012 TORCH GmbH
+ * Copyright (c) 2012 Graylog, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,7 @@ public abstract class ThrottleableTransport implements Transport {
                     CK_THROTTLING_ALLOWED,
                     "Allow throttling this input.",
                     false,
-                    "If enabled, no new messages will be read from this input until Graylog2 catches up with its message load. " +
+                    "If enabled, no new messages will be read from this input until Graylog catches up with its message load. " +
                             "This is typically useful for inputs reading from files or message queue systems like AMQP or Kafka. " +
                             "If you regularly poll an external system, e.g. via HTTP, you normally want to leave this disabled."
 
@@ -77,11 +77,13 @@ public abstract class ThrottleableTransport implements Transport {
 
     @Override
     public void launch(MessageInput input) throws MisfireException {
+        // Call this before registering on the event bus. There might be stuff in doLaunch() that needs to run first.
+        doLaunch(input);
+
         // only listen for updates if we are allowed to be throttled at all
         if (throttlingAllowed) {
             eventBus.register(this);
         }
-        doLaunch(input);
     }
 
     /**
@@ -94,14 +96,21 @@ public abstract class ThrottleableTransport implements Transport {
 
     @Override
     public void stop() {
-        if (throttlingAllowed) {
-            eventBus.unregister(this);
-        }
         // always unblock the transport when shutting down to avoid deadlock
         if (currentlyThrottled.get()) {
             blockLatch.countDown();
         }
+        // Call this before unregistering from the eventbus. There might be another call to unregister in doStop()
+        // which is not protected by try/catch.
         doStop();
+
+        if (throttlingAllowed) {
+            try {
+                eventBus.unregister(this);
+            } catch (IllegalArgumentException ignored) {
+                // Ingored. This will be thrown if the object has been unregistered before.
+            }
+        }
     }
 
     /**
@@ -110,11 +119,15 @@ public abstract class ThrottleableTransport implements Transport {
     protected abstract void doStop();
 
     /**
-     * Only called if this input is allowed to be throttled at all
+     * Only executed if this input is allowed to be throttled at all
      * @param throttleState current processing system state
      */
     @Subscribe
     public void updateThrottleState(ThrottleState throttleState) {
+        // Only run if throttling is enabled.
+        if (!throttlingAllowed) {
+            return;
+        }
         // check if we are throttled
         final boolean throttled = determineIfThrottled(throttleState);
         if (currentlyThrottled.get()) {
@@ -202,7 +215,7 @@ public abstract class ThrottleableTransport implements Transport {
         try {
             blockLatch.await();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            // ignore
         }
     }
 }

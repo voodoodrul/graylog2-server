@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.buffers.processors;
 
@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import javax.inject.Inject;
 import com.lmax.disruptor.WorkHandler;
 import org.graylog2.Configuration;
-import org.graylog2.outputs.CachedOutputRouter;
 import org.graylog2.outputs.DefaultMessageOutput;
 import org.graylog2.outputs.OutputRouter;
 import org.graylog2.plugin.Message;
@@ -73,7 +72,7 @@ public class OutputBufferProcessor implements WorkHandler<MessageEvent> {
                                  MetricRegistry metricRegistry,
                                  ThroughputStats throughputStats,
                                  ServerStatus serverStatus,
-                                 CachedOutputRouter outputRouter,
+                                 OutputRouter outputRouter,
                                  @DefaultMessageOutput MessageOutput defaultMessageOutput) {
         this.configuration = configuration;
         this.throughputStats = throughputStats;

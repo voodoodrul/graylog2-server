@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.shared.inputs;
 
@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.graylog2.plugin.IOState;
 import org.graylog2.plugin.buffers.InputBuffer;
 import org.graylog2.plugin.inputs.MessageInput;
+import org.graylog2.shared.utilities.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +98,7 @@ public class InputLauncher {
         final MessageInput input = inputState.getStoppable();
         StringBuilder msg = new StringBuilder("The [" + input.getClass().getCanonicalName() + "] input with ID <" + input.getId() + "> misfired. Reason: ");
 
-        String causeMsg = extractMessageCause(e);
+        String causeMsg = ExceptionUtils.getRootCauseMessage(e);
 
         msg.append(causeMsg);
 
@@ -108,23 +109,6 @@ public class InputLauncher {
 
         inputState.setState(IOState.Type.FAILED);
         inputState.setDetailedMessage(causeMsg);
-    }
-
-    private String extractMessageCause(Throwable e) {
-        StringBuilder causeMsg = new StringBuilder(e.getMessage());
-
-        // Go down the whole cause chain to build a message that provides as much information as possible.
-        int maxLevel = 7; // ;)
-        Throwable cause = e.getCause();
-        for (int i = 0; i < maxLevel; i++) {
-            if (cause == null) {
-                break;
-            }
-
-            causeMsg.append(", ").append(cause.getMessage());
-            cause = cause.getCause();
-        }
-        return causeMsg.toString();
     }
 
     public void launchAllPersisted() {

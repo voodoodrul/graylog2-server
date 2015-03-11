@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.streams;
 
@@ -34,13 +34,13 @@ import java.util.Map;
 
 @CollectionName("outputs")
 public class OutputImpl implements Output {
-    private static final String FIELD_ID = "_id";
-    private static final String FIELD_TITLE = "title";
-    private static final String FIELD_TYPE = "type";
-    private static final String FIELD_CONFIGURATION = "configuration";
-    private static final String FIELD_CREATOR_USER_ID = "creator_user_id";
-    private static final String FIELD_CREATED_AT = "created_at";
-    private static final String FIELD_CONTENT_PACK = "content_pack";
+    static final String FIELD_ID = "_id";
+    static final String FIELD_TITLE = "title";
+    static final String FIELD_TYPE = "type";
+    static final String FIELD_CONFIGURATION = "configuration";
+    static final String FIELD_CREATOR_USER_ID = "creator_user_id";
+    static final String FIELD_CREATED_AT = "created_at";
+    static final String FIELD_CONTENT_PACK = "content_pack";
 
     private ObjectId _id;
     private String title;
@@ -61,7 +61,8 @@ public class OutputImpl implements Output {
         this(title, type, configuration, createdAt, creatorUserId, null);
     }
 
-    public OutputImpl(String title, String type, Map<String, Object> configuration, Date createdAt, String creatorUserId, String contentPack) {
+    public OutputImpl(String title, String type, Map<String, Object> configuration, Date createdAt, String creatorUserId,
+                      @Nullable String contentPack) {
         this._id = new ObjectId();
         this.title = title;
         this.type = type;
@@ -139,6 +140,37 @@ public class OutputImpl implements Output {
         fields.put(FIELD_CONTENT_PACK, getContentPack());
 
         return fields;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof OutputImpl)) return false;
+
+        OutputImpl output = (OutputImpl) o;
+
+        if (!_id.equals(output._id)) return false;
+        if (configuration != null ? !configuration.equals(output.configuration) : output.configuration != null)
+            return false;
+        if (contentPack != null ? !contentPack.equals(output.contentPack) : output.contentPack != null) return false;
+        if (!createdAt.equals(output.createdAt)) return false;
+        if (!creatorUserId.equals(output.creatorUserId)) return false;
+        if (!title.equals(output.title)) return false;
+        if (!type.equals(output.type)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = _id.hashCode();
+        result = 31 * result + title.hashCode();
+        result = 31 * result + type.hashCode();
+        result = 31 * result + (configuration != null ? configuration.hashCode() : 0);
+        result = 31 * result + createdAt.hashCode();
+        result = 31 * result + creatorUserId.hashCode();
+        result = 31 * result + (contentPack != null ? contentPack.hashCode() : 0);
+        return result;
     }
 
     @Override

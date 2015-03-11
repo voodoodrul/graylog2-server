@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.outputs;
 
@@ -40,7 +40,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,7 +95,7 @@ public class GelfOutput implements MessageOutput {
         final int port = configuration.getInt(CK_PORT);
 
 
-        final GelfConfiguration gelfConfiguration = new GelfConfiguration(new InetSocketAddress(hostname, port))
+        final GelfConfiguration gelfConfiguration = new GelfConfiguration(hostname, port)
                 .transport(GelfTransports.valueOf(protocol.toUpperCase()));
 
         LOG.debug("Initializing GELF sender and connecting to {}://{}:{}", protocol, hostname, port);
@@ -125,6 +124,19 @@ public class GelfOutput implements MessageOutput {
         }
     }
 
+    private GelfMessageLevel extractLevel(Object rawLevel) {
+        if (rawLevel != null)
+            if (rawLevel instanceof Number)
+                return GelfMessageLevel.fromNumericLevel(((Number) rawLevel).intValue());
+            if (rawLevel instanceof String)
+                try {
+                    return GelfMessageLevel.fromNumericLevel(Integer.getInteger(rawLevel.toString()));
+                } catch(NumberFormatException e) {
+                    return null;
+                }
+        return null;
+    }
+
     protected GelfMessage toGELFMessage(final Message message) {
         final DateTime timestamp;
         if (message.getField("timestamp") != null || message.getField("timestamp") instanceof DateTime) {
@@ -133,17 +145,18 @@ public class GelfOutput implements MessageOutput {
             timestamp = Tools.iso8601();
         }
 
-        final Integer level = (Integer) message.getField("level");
-        final GelfMessageLevel messageLevel = level == null ? GelfMessageLevel.ALERT : GelfMessageLevel.fromNumericLevel(level);
+        final GelfMessageLevel messageLevel = extractLevel(message.getField("level"));
         final String fullMessage = (String) message.getField("message");
         final String facility = (String) message.getField("facility");
         final String forwarder = GelfOutput.class.getCanonicalName();
 
         final GelfMessageBuilder builder = new GelfMessageBuilder(message.getMessage(), message.getSource())
                 .timestamp(timestamp.getMillis() / 1000.0d)
-                .level(messageLevel)
                 .additionalField("_forwarder", forwarder)
                 .additionalFields(message.getFields());
+
+        if (messageLevel != null)
+            builder.level(messageLevel);
 
         if (fullMessage != null) {
             builder.fullMessage(fullMessage);

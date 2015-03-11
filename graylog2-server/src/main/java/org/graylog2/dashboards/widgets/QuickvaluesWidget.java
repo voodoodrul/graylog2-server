@@ -1,25 +1,24 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.dashboards.widgets;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import org.graylog2.indexer.IndexHelper;
 import org.graylog2.indexer.results.TermsResult;
 import org.graylog2.indexer.searches.Searches;
 import org.graylog2.indexer.searches.timeranges.TimeRange;
@@ -87,21 +86,15 @@ public class QuickvaluesWidget extends DashboardWidget {
             filter = "streams:" + streamId;
         }
 
-        try {
-            final TermsResult terms = searches.terms(field, 50, query, filter, timeRange);
+        final TermsResult terms = searches.terms(field, 50, query, filter, timeRange);
 
-            Map<String, Object> result = Maps.newHashMap();
-            result.put("terms", terms.getTerms());
-            result.put("total", terms.getTotal());
-            result.put("other", terms.getOther());
-            result.put("missing", terms.getMissing());
+        Map<String, Object> result = Maps.newHashMap();
+        result.put("terms", terms.getTerms());
+        result.put("total", terms.getTotal());
+        result.put("other", terms.getOther());
+        result.put("missing", terms.getMissing());
 
-            return new ComputationResult(result, terms.took().millis());
-        } catch (IndexHelper.InvalidRangeFormatException e) {
-            String msg = "Could not calculate [" + this.getClass().getCanonicalName() + "] widget <" + getId() + ">. Invalid time range.";
-            LOG.error(msg, e);
-            throw new RuntimeException(msg);
-        }
+        return new ComputationResult(result, terms.took().millis());
     }
 
     private boolean checkConfig(Map<String, Object> config) {

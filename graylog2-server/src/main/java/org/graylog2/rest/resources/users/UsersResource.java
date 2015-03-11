@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.rest.resources.users;
 
@@ -27,12 +27,12 @@ import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.graylog2.Configuration;
 import org.graylog2.plugin.database.ValidationException;
-import org.graylog2.shared.rest.resources.RestResource;
 import org.graylog2.rest.resources.users.requests.ChangePasswordRequest;
 import org.graylog2.rest.resources.users.requests.ChangeUserRequest;
 import org.graylog2.rest.resources.users.requests.CreateUserRequest;
 import org.graylog2.rest.resources.users.requests.PermissionEditRequest;
 import org.graylog2.rest.resources.users.requests.Startpage;
+import org.graylog2.rest.resources.users.requests.UpdateUserPreferences;
 import org.graylog2.rest.resources.users.responses.Token;
 import org.graylog2.rest.resources.users.responses.TokenList;
 import org.graylog2.rest.resources.users.responses.User;
@@ -40,8 +40,8 @@ import org.graylog2.rest.resources.users.responses.UserList;
 import org.graylog2.security.AccessToken;
 import org.graylog2.security.AccessTokenService;
 import org.graylog2.shared.security.RestPermissions;
+import org.graylog2.shared.rest.resources.RestResource;
 import org.graylog2.shared.users.UserService;
-import org.hibernate.validator.constraints.NotEmpty;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,11 +62,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.graylog2.shared.security.RestPermissions.USERS_EDIT;
@@ -167,7 +165,7 @@ public class UsersResource extends RestResource {
         final String id = userService.save(user);
         LOG.debug("Saved user {} with id {}", user.getName(), id);
 
-        final URI userUri = UriBuilder.fromResource(UsersResource.class)
+        final URI userUri = getUriBuilderToSelf().path(UsersResource.class)
                 .path("{username}")
                 .build(user.getName());
 
@@ -278,7 +276,6 @@ public class UsersResource extends RestResource {
 
     @PUT
     @Path("{username}/preferences")
-    @RequiresPermissions(USERS_EDIT)
     @ApiOperation("Update a user's preferences set.")
     @ApiResponses({
             @ApiResponse(code = 400, message = "Missing or invalid permission data.")
@@ -286,14 +283,15 @@ public class UsersResource extends RestResource {
     public void savePreferences(@ApiParam(name = "username", value = "The name of the user to modify.", required = true)
                                 @PathParam("username") String username,
                                 @ApiParam(name = "JSON body", value = "The map of preferences to assign to the user.", required = true)
-                                @NotEmpty Map<String, Object> preferencesRequest) throws ValidationException {
+                                UpdateUserPreferences preferencesRequest) throws ValidationException {
         final org.graylog2.plugin.database.users.User user = userService.load(username);
+        checkPermission(RestPermissions.USERS_EDIT, username);
 
         if (user == null) {
             throw new NotFoundException();
         }
 
-        user.setPreferences(preferencesRequest);
+        user.setPreferences(preferencesRequest.preferences());
         userService.save(user);
     }
 

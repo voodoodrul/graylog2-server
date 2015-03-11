@@ -1,18 +1,18 @@
 /**
- * This file is part of Graylog2.
+ * This file is part of Graylog.
  *
- * Graylog2 is free software: you can redistribute it and/or modify
+ * Graylog is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Graylog2 is distributed in the hope that it will be useful,
+ * Graylog is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Graylog2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Graylog.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.graylog2.indexer.cluster;
 
@@ -62,33 +62,9 @@ public class Cluster {
         ClusterStateMonitor.setCluster(this);
     }
 
-    public String getName() {
-        return health().getClusterName();
-    }
-
-    public ClusterHealthStatus getHealth() {
-        return health().getStatus();
-    }
-
-    public int getActiveShards() {
-        return health().getActiveShards();
-    }
-
-    public int getInitializingShards() {
-        return health().getInitializingShards();
-    }
-
-    public int getUnassignedShards() {
-        return health().getUnassignedShards();
-    }
-
-    public int getRelocatingShards() {
-        return health().getRelocatingShards();
-    }
-
-    private ClusterHealthResponse health() {
-        String[] indices = deflector.getAllDeflectorIndexNames();
-        return c.admin().cluster().health(new ClusterHealthRequest(indices)).actionGet();
+    public ClusterHealthResponse health() {
+        ClusterHealthRequest request = new ClusterHealthRequest(deflector.getDeflectorWildcard());
+        return c.admin().cluster().health(request).actionGet();
     }
 
     public int getNumberOfNodes() {
@@ -158,7 +134,7 @@ public class Cluster {
             return false;
         }
         try {
-            return getHealth() != ClusterHealthStatus.RED;
+            return health().getStatus() != ClusterHealthStatus.RED;
         } catch (ElasticsearchException e) {
             LOG.trace("Couldn't determine Elasticsearch health properly", e);
             return false;
