@@ -16,6 +16,8 @@
  */
 package org.graylog2.restclient.models;
 
+import org.graylog2.rest.models.system.inputs.responses.InputCreated;
+import org.graylog2.rest.models.system.inputs.responses.InputTypeInfo;
 import org.graylog2.restclient.lib.APIException;
 import org.graylog2.restclient.lib.ExclusiveInputException;
 import org.graylog2.restclient.models.api.responses.system.InputLaunchResponse;
@@ -76,11 +78,11 @@ public abstract class ClusterEntity implements Comparable<ClusterEntity> {
 
     public abstract String getNodeId();
 
-    public abstract InputLaunchResponse launchInput(String title, String type, Boolean global, Map<String, Object> configuration, boolean isExclusive, String nodeId) throws ExclusiveInputException;
+    public abstract InputCreated launchInput(String title, String type, Boolean global, Map<String, Object> configuration, boolean isExclusive, String nodeId) throws ExclusiveInputException;
 
     public abstract boolean launchExistingInput(String inputId);
 
-    public abstract InputTypeSummaryResponse getInputTypeInformation(String type) throws IOException, APIException;
+    public abstract InputTypeInfo getInputTypeInformation(String type) throws IOException, APIException;
 
     public abstract void stopInput(String inputId) throws IOException, APIException;
 

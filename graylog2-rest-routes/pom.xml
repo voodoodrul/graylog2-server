@@ -197,8 +197,6 @@
             <artifactId>guava</artifactId>
             <scope>compile</scope>
             <optional>true</optional>
-            <scope>provided</scope>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>

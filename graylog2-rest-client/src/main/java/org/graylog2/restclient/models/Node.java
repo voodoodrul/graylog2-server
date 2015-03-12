@@ -22,6 +22,8 @@ import com.google.common.net.MediaType;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import org.graylog2.rest.models.system.inputs.requests.InputLaunchRequest;
+import org.graylog2.rest.models.system.inputs.responses.InputCreated;
+import org.graylog2.rest.models.system.inputs.responses.InputTypeInfo;
 import org.graylog2.restclient.lib.APIException;
 import org.graylog2.restclient.lib.ApiClient;
 import org.graylog2.restclient.lib.DateTools;
@@ -281,7 +283,7 @@ public class Node extends ClusterEntity {
     }
 
     @Override
-    public InputLaunchResponse launchInput(String title, String type, Boolean global, Map<String, Object> configuration, boolean isExclusive, String nodeId) throws ExclusiveInputException {
+    public InputCreated launchInput(String title, String type, Boolean global, Map<String, Object> configuration, boolean isExclusive, String nodeId) throws ExclusiveInputException {
         if (isExclusive) {
             for (Input input : getInputs()) {
                 if (input.getType().equals(type)) {
@@ -338,7 +340,7 @@ public class Node extends ClusterEntity {
         return api.path(routes.InputTypesResource().types(), InputTypesResponse.class).node(this).execute().types;
     }
 
-    public InputTypeSummaryResponse getInputTypeInformation(String type) throws IOException, APIException {
+    public InputTypeInfo getInputTypeInformation(String type) throws IOException, APIException {
         return api.path(routes.InputTypesResource().info(type), InputTypeSummaryResponse.class).node(this).execute();
     }
 
