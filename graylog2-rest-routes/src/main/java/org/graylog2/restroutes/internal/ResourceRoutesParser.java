@@ -38,6 +38,7 @@ import com.google.common.collect.Sets;
 import org.reflections.Reflections;
 
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -146,14 +147,14 @@ public class ResourceRoutesParser {
     private Class<?> getBodyReturnType(Method method) {
         int i = 0;
         for (Annotation[] annotations : method.getParameterAnnotations()) {
-            boolean isPathParam = false;
+            boolean isNotBody = false;
             for (Annotation annotation :annotations)
-                if (annotation instanceof PathParam) {
-                    isPathParam = true;
+                if (annotation instanceof PathParam || annotation instanceof Context) {
+                    isNotBody = true;
                     break;
                 }
 
-            if (!isPathParam)
+            if (!isNotBody)
                 return method.getParameterTypes()[i];
             i++;
         }
