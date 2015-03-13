@@ -60,7 +60,7 @@ public abstract class ClusterEntity implements Comparable<ClusterEntity> {
         return uri;
     }
 
-    public InputLaunchResponse launchInput(String title, String type, Boolean global, Map<String, Object> configuration, boolean isExclusive) throws ExclusiveInputException {
+    public InputCreated launchInput(String title, String type, Boolean global, Map<String, Object> configuration, boolean isExclusive) throws ExclusiveInputException {
         return launchInput(title, type, global, configuration, isExclusive, global ? null : this.getNodeId());
     }
 

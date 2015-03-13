@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.common.net.MediaType;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
+import org.graylog2.rest.models.system.buffers.responses.BufferClasses;
 import org.graylog2.rest.models.system.inputs.requests.InputLaunchRequest;
 import org.graylog2.rest.models.system.inputs.responses.InputCreated;
 import org.graylog2.rest.models.system.inputs.responses.InputTypeInfo;
@@ -48,8 +49,8 @@ import org.graylog2.restclient.models.api.responses.system.loggers.LoggerSubsyst
 import org.graylog2.restclient.models.api.responses.system.loggers.LoggerSummary;
 import org.graylog2.restclient.models.api.responses.system.loggers.LoggersResponse;
 import org.graylog2.restroutes.factories.RestAdapterFactory;
-import org.graylog2.restroutes.generated.API;
 import org.graylog2.restroutes.generated.routes;
+import org.graylog2.restroutes.generated.server.ServerAPI;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
@@ -76,7 +77,6 @@ public class Node extends ClusterEntity {
 
     private static final Logger LOG = LoggerFactory.getLogger(Node.class);
 
-    private final ApiClient api;
     private final Input.Factory inputFactory;
     private final InputState.Factory inputStateFactory;
     private final RestAdapterFactory restAdapterFactory;
@@ -110,7 +110,6 @@ public class Node extends ClusterEntity {
                 InputState.Factory inputStateFactory,
                 RestAdapterFactory restAdapterFactory,
                 @Assisted NodeSummaryResponse r) {
-        this.api = api;
         this.inputFactory = inputFactory;
         this.inputStateFactory = inputStateFactory;
         this.restAdapterFactory = restAdapterFactory;
@@ -128,7 +127,6 @@ public class Node extends ClusterEntity {
                 Input.Factory inputFactory,
                 InputState.Factory inputStateFactory,
                 @Assisted URI transportAddress) {
-        this.api = api;
         this.inputFactory = inputFactory;
         this.inputStateFactory = inputStateFactory;
 
@@ -149,10 +147,7 @@ public class Node extends ClusterEntity {
     
     public BufferInfo loadBufferInfo() {
         try {
-            return new BufferInfo(
-                    api.path(routes.BuffersResource().utilization(), BuffersResponse.class)
-                            .node(this)
-                            .execute());
+            return new BufferInfo(api().buffers().utilization());
         } catch (Exception e) {
             LOG.error("Unable to read buffer info from node " + this, e);
         }
@@ -166,13 +161,8 @@ public class Node extends ClusterEntity {
         return this.bufferClasses;
     }
     
-    public BufferClassesResponse loadBufferClasses() {
-        try {
-            return api.path(routes.BuffersResource().getBufferClasses(), BufferClassesResponse.class).node(this).execute();
-        } catch (Exception e) {
-            LOG.error("Unable to read buffer class names from node " + this, e);
-        }
-        return BufferClassesResponse.buildEmpty();
+    public BufferClasses loadBufferClasses() {
+        return api().buffers().getBufferClasses();
     }
 
     public synchronized JournalInfo getJournalInfo() {
@@ -183,20 +173,13 @@ public class Node extends ClusterEntity {
     }
     
     public JournalInfo loadJournalInfo() {
-        try {
-            return api.path(routes.JournalResource().show(), JournalInfo.class).node(this).execute();
-        } catch (Exception e) {
-            LOG.error("Unable to read journal info from node " + this, e);
-        }
-        return JournalInfo.buildEmpty();
+        return api().journal().show();
     }
 
     public Map<String, InternalLoggerSubsystem> allLoggerSubsystems() {
         Map<String, InternalLoggerSubsystem> subsystems = Maps.newHashMap();
         try {
-            LoggerSubsystemsResponse response = api.path(routes.LoggersResource().subsytems(), LoggerSubsystemsResponse.class)
-                    .node(this)
-                    .execute();
+            LoggerSubsystemsResponse response = api().loggers().subsytems();
 
             for (Map.Entry<String, LoggerSubsystemSummary> ss : response.subsystems.entrySet()) {
                 subsystems.put(ss.getKey(), new InternalLoggerSubsystem(
@@ -651,11 +634,11 @@ public class Node extends ClusterEntity {
                 .execute();
     }
 
-    public API api() {
-        return new API(restAdapterFactory.create(this.getTransportAddress()));
+    public ServerAPI api() {
+        return new ServerAPI(restAdapterFactory.create(this.getTransportAddress()));
     }
 
-    public API api(String user, String password) {
-        return new API(restAdapterFactory.create(this.getTransportAddress(), user, password));
+    public ServerAPI api(String user, String password) {
+        return new ServerAPI(restAdapterFactory.create(this.getTransportAddress(), user, password));
     }
 }
