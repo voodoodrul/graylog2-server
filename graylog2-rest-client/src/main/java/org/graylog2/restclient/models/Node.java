@@ -96,13 +96,13 @@ public class Node extends ClusterEntity {
     private AtomicInteger failureCount = new AtomicInteger(0);
 
     private BufferInfo bufferInfo;
-    private BufferClassesResponse bufferClasses;
+    private BufferClasses bufferClasses;
     private JournalInfo journalInfo;
 
     /* for initial set up in test */
-    public Node(NodeSummaryResponse r) {
+    /*public Node(NodeSummaryResponse r) {
         this(null, null, null, r);
-    }
+    }*/
 
     @AssistedInject
     public Node(ApiClient api,
@@ -154,7 +154,7 @@ public class Node extends ClusterEntity {
         return BufferInfo.buildEmpty();
     }
 
-    public synchronized BufferClassesResponse getBufferClasses() {
+    public synchronized BufferClasses getBufferClasses() {
         if (this.bufferClasses == null) {
             this.bufferClasses = loadBufferClasses();
         }
