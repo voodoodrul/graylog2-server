@@ -30,8 +30,6 @@ import org.graylog2.restclient.lib.ApiClient;
 import org.graylog2.restclient.lib.DateTools;
 import org.graylog2.restclient.lib.ExclusiveInputException;
 import org.graylog2.restclient.lib.metrics.Metric;
-import org.graylog2.restclient.models.api.responses.BufferClassesResponse;
-import org.graylog2.restclient.models.api.responses.BuffersResponse;
 import org.graylog2.restclient.models.api.responses.JournalInfo;
 import org.graylog2.restclient.models.api.responses.SystemOverviewResponse;
 import org.graylog2.restclient.models.api.responses.cluster.NodeSummaryResponse;
@@ -77,6 +75,7 @@ public class Node extends ClusterEntity {
 
     private static final Logger LOG = LoggerFactory.getLogger(Node.class);
 
+    private final ApiClient api;
     private final Input.Factory inputFactory;
     private final InputState.Factory inputStateFactory;
     private final RestAdapterFactory restAdapterFactory;
@@ -110,6 +109,7 @@ public class Node extends ClusterEntity {
                 InputState.Factory inputStateFactory,
                 RestAdapterFactory restAdapterFactory,
                 @Assisted NodeSummaryResponse r) {
+        this.api = api;
         this.inputFactory = inputFactory;
         this.inputStateFactory = inputStateFactory;
         this.restAdapterFactory = restAdapterFactory;
@@ -126,9 +126,12 @@ public class Node extends ClusterEntity {
     public Node(ApiClient api,
                 Input.Factory inputFactory,
                 InputState.Factory inputStateFactory,
+                RestAdapterFactory restAdapterFactory,
                 @Assisted URI transportAddress) {
+        this.api = api;
         this.inputFactory = inputFactory;
         this.inputStateFactory = inputStateFactory;
+        this.restAdapterFactory = restAdapterFactory;
 
         this.transportAddress = normalizeUriPath(transportAddress);
         lastSeen = null;
@@ -179,7 +182,7 @@ public class Node extends ClusterEntity {
     public Map<String, InternalLoggerSubsystem> allLoggerSubsystems() {
         Map<String, InternalLoggerSubsystem> subsystems = Maps.newHashMap();
         try {
-            LoggerSubsystemsResponse response = api().loggers().subsytems();
+            LoggerSubsystemsResponse response = api().loggers().subsystems();
 
             for (Map.Entry<String, LoggerSubsystemSummary> ss : response.subsystems.entrySet()) {
                 subsystems.put(ss.getKey(), new InternalLoggerSubsystem(
