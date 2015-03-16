@@ -37,7 +37,6 @@ import org.graylog2.restroutes.internal.ResourceRoutesParser;
 import org.graylog2.restroutes.internal.RouteClassGenerator;
 import org.graylog2.restroutes.internal.RouteClass;
 import org.graylog2.restroutes.internal.RouterGenerator;
-import retrofit.Endpoint;
 import retrofit.RestAdapter;
 import org.graylog2.shared.rest.resources.RestResource;
 
@@ -50,13 +49,14 @@ import java.util.List;
  * @author Dennis Oelkers <dennis@torch.sh>
  */
 public class GenerateRoutes {
-    private static final String packagePrefix = "org.graylog2.restroutes.generated";
+    private static final String vendorPrefix = "org.graylog2";
+    private static final String packagePrefix = vendorPrefix + ".restroutes.generated";
     private static final String sharedRouterName = packagePrefix + ".shared.NodeAPI";
     private static final String serverRouterName = packagePrefix + ".server.ServerAPI";
     private static final String radioRouterName = packagePrefix + ".radio.RadioAPI";
-    private static final String sharedPackageName = "org.graylog2.shared.rest.resources";
-    private static final String serverPackageName = "org.graylog2.rest.resources";
-    private static final String radioPackageName = "org.graylog2.radio.rest.resources";
+    private static final String sharedPackageName = vendorPrefix + ".shared.rest.resources";
+    private static final String serverPackageName = vendorPrefix + ".rest.resources";
+    private static final String radioPackageName = vendorPrefix + "=.radio.rest.resources";
 
     public static void main(String[] argv) {
         // Just "touching" class in server jar so it gets loaded.
