@@ -30,7 +30,7 @@ public abstract class SourcesList {
     public abstract int total();
 
     @JsonProperty
-    public abstract Map<String, Integer> sources();
+    public abstract Map<String, Long> sources();
 
     @JsonProperty
     public abstract long tookMs();
@@ -40,7 +40,7 @@ public abstract class SourcesList {
 
     @JsonCreator
     public static SourcesList create(@JsonProperty("total") int total,
-                                     @JsonProperty("sources") Map<String, Integer> sources,
+                                     @JsonProperty("sources") Map<String, Long> sources,
                                      @JsonProperty("took_ms") long tookMs,
                                      @JsonProperty("range") int range) {
         return new AutoValue_SourcesList(total, sources, tookMs, range);

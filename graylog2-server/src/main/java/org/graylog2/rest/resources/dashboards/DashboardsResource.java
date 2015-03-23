@@ -20,7 +20,6 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.annotation.Timed;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiParam;
@@ -29,7 +28,6 @@ import com.wordnik.swagger.annotations.ApiResponses;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.graylog2.dashboards.Dashboard;
-import org.graylog2.dashboards.DashboardImpl;
 import org.graylog2.dashboards.DashboardRegistry;
 import org.graylog2.dashboards.DashboardService;
 import org.graylog2.dashboards.widgets.DashboardWidget;
@@ -109,13 +107,7 @@ public class DashboardsResource extends RestResource {
         restrictToMaster();
 
         // Create dashboard.
-        Map<String, Object> dashboardData = Maps.newHashMap();
-        dashboardData.put("title", cr.title());
-        dashboardData.put("description", cr.description());
-        dashboardData.put("creator_user_id", getCurrentUser().getName());
-        dashboardData.put("created_at", Tools.iso8601());
-
-        final Dashboard dashboard = new DashboardImpl(dashboardData);
+        final Dashboard dashboard = dashboardService.create(cr.title(), cr.description(), getCurrentUser().getName(), Tools.iso8601());
         final String id = dashboardService.save(dashboard);
 
         dashboardRegistry.add(dashboard);
