@@ -89,9 +89,8 @@ public class DeflectorResource extends RestResource {
     @RequiresPermissions(RestPermissions.DEFLECTOR_READ)
     @Path("/config")
     @Produces(MediaType.APPLICATION_JSON)
+    @RestrictToMaster
     public DeflectorConfigResponse config() {
-        restrictToMaster();
-
         final RotationStrategy strategy = rotationStrategyProvider.get();
         DeflectorConfigResponse response = null;
 
@@ -115,9 +114,8 @@ public class DeflectorResource extends RestResource {
     @ApiOperation(value = "Cycle deflector to new/next index")
     @RequiresPermissions(RestPermissions.DEFLECTOR_CYCLE)
     @Path("/cycle")
+    @RestrictToMaster
     public void cycle() {
-        restrictToMaster();
-
         final String msg = "Cycling deflector. Reason: REST request.";
         LOG.info(msg);
         activityWriter.write(new Activity(msg, DeflectorResource.class));
