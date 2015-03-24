@@ -34,6 +34,7 @@ import org.graylog2.plugin.indexer.rotation.RotationStrategy;
 import org.graylog2.rest.models.system.responses.DeflectorConfigResponse;
 import org.graylog2.rest.models.system.responses.MessageCountRotationStrategyResponse;
 import org.graylog2.rest.models.system.responses.SizeBasedRotationStrategyResponse;
+import org.graylog2.shared.security.RestrictToMaster;
 import org.graylog2.shared.system.activities.Activity;
 import org.graylog2.shared.system.activities.ActivityWriter;
 import org.slf4j.Logger;
