@@ -172,6 +172,7 @@ public class OutputResource extends RestResource {
         checkPermission(RestPermissions.OUTPUTS_TERMINATE);
         final Output output = outputService.load(outputId);
         outputService.destroy(output);
+        this.outputRegistry.removeOutput(output);
     }
 
     @GET
