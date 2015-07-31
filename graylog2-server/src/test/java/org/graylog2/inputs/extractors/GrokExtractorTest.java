@@ -16,42 +16,30 @@
  */
 package org.graylog2.inputs.extractors;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.graylog2.ConfigurationException;
 import org.graylog2.grok.GrokPattern;
 import org.graylog2.plugin.LocalMetricRegistry;
 import org.graylog2.plugin.inputs.Converter;
 import org.graylog2.plugin.inputs.Extractor;
-import org.junit.Before;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class GrokExtractorTest {
-
-    private Set<GrokPattern> patternSet;
-
-    @Before
-    public void setUp() throws Exception {
-        patternSet = Sets.newHashSet();
-
-        final GrokPattern baseNum = new GrokPattern();
-        baseNum.name = "BASE10NUM";
-        baseNum.pattern = "(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))";
-
-        final GrokPattern number = new GrokPattern();
-        number.name = "NUMBER";
-        number.pattern = "(?:%{BASE10NUM:UNWANTED})";
-
-        patternSet.add(baseNum);
-        patternSet.add(number);
-    }
+    private static final Set<GrokPattern> PATTERNS = ImmutableSet.of(
+            GrokPattern.create("BASE10NUM", "(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\\.[0-9]+)?)|(?:\\.[0-9]+)))"),
+            GrokPattern.create("NUMBER", "(?:%{BASE10NUM:UNWANTED})"),
+            GrokPattern.create("DATA", ".*?"));
 
     @Test
     public void testDatatypeExtraction() {
@@ -63,13 +51,26 @@ public class GrokExtractorTest {
         assertEquals(199999, results[0].getValue());
     }
 
+    @Test
+    public void testDateConversion() {
+        final String pattern = "<\\d+>%{DATA:timestamp;date;yyyy-MM-dd'T'HH:mm:ss.SSSZ} %{DATA:cst_hostname}";
+        final String message = "<166>2015-07-31T10:05:36.773Z esxi-e1b2.local.xxxx.it Vpxa: [4A2D4B90 verbose 'VpxaHalCnxHostagent' opID=WFU-65ff5b37] [WaitForUpdatesDone] Completed callback";
+        final GrokExtractor extractor = makeExtractor(pattern);
+        final Extractor.Result[] results = extractor.run(message);
+
+        assertThat(results)
+                .hasSize(2)
+                .contains(new Extractor.Result(new DateTime(2015, 7, 31, 10, 5, 36, 773, DateTimeZone.UTC).toDate(), "timestamp", -1, -1))
+                .contains(new Extractor.Result("esxi-e1b2.local.xxxx.it", "cst_hostname", -1, -1));
+    }
+
     private GrokExtractor makeExtractor(String pattern) {
         Map<String, Object> config = Maps.newHashMap();
         config.put("grok_pattern", pattern);
 
         try {
             return new GrokExtractor(new LocalMetricRegistry(),
-                                     patternSet,
+                    PATTERNS,
                                      "id",
                                      "title",
                                      0,
