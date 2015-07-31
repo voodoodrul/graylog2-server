@@ -24,6 +24,7 @@ package org.graylog2.plugin.inputs;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.FluentIterable;
@@ -38,6 +39,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -415,6 +417,32 @@ public abstract class Extractor implements EmbeddedPersistable {
             return endIndex;
         }
 
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                    .add("value", value)
+                    .add("value.class", value.getClass())
+                    .add("target", target)
+                    .add("beginIndex", beginIndex)
+                    .add("endIndex", endIndex)
+                    .toString();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Result result = (Result) o;
+            return Objects.equals(beginIndex, result.beginIndex) &&
+                    Objects.equals(endIndex, result.endIndex) &&
+                    Objects.equals(value, result.value) &&
+                    Objects.equals(target, result.target);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(value, target, beginIndex, endIndex);
+        }
     }
 
     private static class ResultPredicate implements Predicate<Result> {
