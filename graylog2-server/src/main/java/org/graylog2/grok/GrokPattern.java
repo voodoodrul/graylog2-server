@@ -17,20 +17,48 @@
 package org.graylog2.grok;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import org.bson.types.ObjectId;
+import org.hibernate.validator.constraints.NotEmpty;
 
+import javax.annotation.Nullable;
 import javax.persistence.Id;
+import javax.validation.constraints.NotNull;
 import java.util.Objects;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 @JsonAutoDetect
 public class GrokPattern {
     @Id
     @org.mongojack.ObjectId
+    @Nullable
     public ObjectId id;
     public String name;
     public String pattern;
+    @Nullable
     public String contentPack;
+
+    public static GrokPattern create(@Nullable ObjectId id, @NotEmpty String name, @NotNull String pattern, @Nullable String contentPack) {
+        final GrokPattern grokPattern = new GrokPattern();
+
+        grokPattern.id = id;
+        grokPattern.name = checkNotNull(name);
+        grokPattern.pattern = checkNotNull(pattern);
+        grokPattern.contentPack = contentPack;
+
+        return grokPattern;
+    }
+
+    public static GrokPattern create(@NotEmpty String name, @NotNull String pattern) {
+        final GrokPattern grokPattern = new GrokPattern();
+
+        grokPattern.name = checkNotNull(name);
+        grokPattern.pattern = checkNotNull(pattern);
+
+        return grokPattern;
+    }
 
     @Override
     public String toString() {
